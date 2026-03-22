@@ -1,0 +1,83 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.root{font-family:var(--font-sans);color:var(--color-text-primary);padding:1.5rem 1.5rem 2rem}
+.step{display:grid;grid-template-columns:32px 1fr;gap:12px;margin-bottom:2px}
+.step-left{display:flex;flex-direction:column;align-items:center}
+.snum{width:32px;height:32px;border-radius:50%;border:.5px solid var(--color-border-secondary);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;background:var(--color-background-primary);flex-shrink:0}
+.snum.done{background:var(--color-background-success);color:var(--color-text-success);border-color:var(--color-border-success)}
+.sline{width:.5px;flex:1;background:var(--color-border-tertiary);margin:3px 0}
+.sbody{padding-bottom:20px}
+.stitle{font-size:13px;font-weight:500;margin-top:5px;margin-bottom:4px}
+.sdesc{font-size:12px;color:var(--color-text-secondary);line-height:1.6}
+.snote{font-size:11px;color:var(--color-text-tertiary);margin-top:6px;padding:7px 10px;background:var(--color-background-secondary);border-radius:6px;line-height:1.5}
+.code{font-family:var(--font-mono);font-size:12px;background:var(--color-background-secondary);padding:2px 6px;border-radius:4px;color:var(--color-text-info)}
+.warn{background:var(--color-background-warning);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--color-text-warning);margin-top:6px;line-height:1.5}
+.tag-g{display:inline-block;font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;background:var(--color-background-success);color:var(--color-text-success);margin-top:5px}
+.tag-b{display:inline-block;font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;background:var(--color-background-info);color:var(--color-text-info);margin-top:5px}
+</style>
+<div class="root">
+
+  <div class="step">
+    <div class="step-left"><div class="snum">1</div><div class="sline"></div></div>
+    <div class="sbody">
+      <div class="stitle">Download ShiftStack from this chat</div>
+      <div class="sdesc">Click the download icon on the ShiftStack file above. It saves as <span class="code">ShiftStack.html</span> to your Downloads folder.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-left"><div class="snum">2</div><div class="sline"></div></div>
+    <div class="sbody">
+      <div class="stitle">Rename it to <span class="code">index.html</span></div>
+      <div class="sdesc">Vercel serves the file called <span class="code">index.html</span> as the homepage. Without this rename it won't load.</div>
+      <div class="snote">Right-click the file → Rename → type <strong>index.html</strong> → hit Enter</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-left"><div class="snum">3</div><div class="sline"></div></div>
+    <div class="sbody">
+      <div class="stitle">Create a new GitHub repo</div>
+      <div class="sdesc">Go to <strong>github.com</strong> → click the <strong>+</strong> in the top right → <strong>New repository</strong>. Name it <span class="code">shiftstack</span>. Set it to Public. Click <strong>Create repository</strong>.</div>
+      <div class="snote">Same steps as when you created the LIV repo. You've done this before.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-left"><div class="snum">4</div><div class="sline"></div></div>
+    <div class="sbody">
+      <div class="stitle">Upload index.html to the repo</div>
+      <div class="sdesc">On your new empty repo page, click <strong>Add file → Upload files</strong>. Drag your <span class="code">index.html</span> in. Scroll down and click <strong>Commit changes</strong>.</div>
+      <span class="tag-g">One file only — that's the whole app</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-left"><div class="snum">5</div><div class="sline"></div></div>
+    <div class="sbody">
+      <div class="stitle">Import to Vercel</div>
+      <div class="sdesc">Go to <strong>vercel.com</strong> → <strong>Add New Project</strong> → <strong>Import Git Repository</strong> → find your <span class="code">shiftstack</span> repo → click <strong>Deploy</strong>. No settings to change. Leave everything default.</div>
+      <div class="warn">When it asks about Framework Preset — leave it on <strong>Other</strong>. Do not select React, Next.js, or anything else. It's a plain HTML file.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-left"><div class="snum">6</div><div class="sline"></div></div>
+    <div class="sbody">
+      <div class="stitle">Your live URL appears in ~30 seconds</div>
+      <div class="sdesc">Vercel gives you a URL like <span class="code">shiftstack.vercel.app</span>. Open it on your phone. You'll see the onboarding screen — go through it with your real info. Set your 10-on/4-off rotation, anchor date, and pay rate.</div>
+      <span class="tag-b">This is your real app from now on</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-left"><div class="snum">7</div><div class="sline"></div></div>
+    <div class="sbody">
+      <div class="stitle">Future updates — dead simple</div>
+      <div class="sdesc">Whenever we update the file here in Claude: download the new version → rename to <span class="code">index.html</span> → go to your GitHub repo → click the existing <span class="code">index.html</span> → click the pencil/edit icon → drag the new file in → commit. Vercel auto-deploys in 30 seconds.</div>
+      <div class="snote">No terminal. No build commands. No npm. Just drag, commit, done.</div>
+    </div>
+  </div>
+
+</div>
