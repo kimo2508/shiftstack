@@ -1,83 +1,1436 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ShiftStack</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-.root{font-family:var(--font-sans);color:var(--color-text-primary);padding:1.5rem 1.5rem 2rem}
-.step{display:grid;grid-template-columns:32px 1fr;gap:12px;margin-bottom:2px}
-.step-left{display:flex;flex-direction:column;align-items:center}
-.snum{width:32px;height:32px;border-radius:50%;border:.5px solid var(--color-border-secondary);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;background:var(--color-background-primary);flex-shrink:0}
-.snum.done{background:var(--color-background-success);color:var(--color-text-success);border-color:var(--color-border-success)}
-.sline{width:.5px;flex:1;background:var(--color-border-tertiary);margin:3px 0}
-.sbody{padding-bottom:20px}
-.stitle{font-size:13px;font-weight:500;margin-top:5px;margin-bottom:4px}
-.sdesc{font-size:12px;color:var(--color-text-secondary);line-height:1.6}
-.snote{font-size:11px;color:var(--color-text-tertiary);margin-top:6px;padding:7px 10px;background:var(--color-background-secondary);border-radius:6px;line-height:1.5}
-.code{font-family:var(--font-mono);font-size:12px;background:var(--color-background-secondary);padding:2px 6px;border-radius:4px;color:var(--color-text-info)}
-.warn{background:var(--color-background-warning);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--color-text-warning);margin-top:6px;line-height:1.5}
-.tag-g{display:inline-block;font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;background:var(--color-background-success);color:var(--color-text-success);margin-top:5px}
-.tag-b{display:inline-block;font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;background:var(--color-background-info);color:var(--color-text-info);margin-top:5px}
+:root{--bg:#0a0c0f;--bg2:#111318;--bg3:#181c22;--bd:rgba(255,255,255,0.08);--bd2:rgba(255,255,255,0.14);--tx:#f0f0ee;--tx2:#8a8f9a;--tx3:#4a4f5a;--ac:#4f9cf9;--gr:#2db87a;--or:#f0a030;--rd:#e85555;--pu:#a064f0;--pi:#f06090}
+body{background:var(--bg);color:var(--tx);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.fu{animation:fadeUp .3s ease both}
+button{cursor:pointer;font-family:inherit}
+.btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;padding:9px 18px;border-radius:8px;border:none;transition:all .15s}
+.bp{background:var(--ac);color:#fff}.bp:hover{filter:brightness(1.15)}
+.bg{background:transparent;color:var(--tx2);border:1px solid var(--bd2)}.bg:hover{background:var(--bg3);color:var(--tx)}
+.bd2c{background:rgba(232,85,85,0.1);color:var(--rd);border:1px solid rgba(232,85,85,0.2)}
+.bsm{padding:6px 12px;font-size:12px}
+input,textarea,select{background:var(--bg3);border:1px solid var(--bd);color:var(--tx);font-family:inherit;font-size:14px;border-radius:8px;padding:10px 14px;width:100%;outline:none;transition:border-color .15s}
+input:focus,textarea:focus,select:focus{border-color:var(--ac)}
+select option{background:var(--bg3)}
+label{font-size:12px;color:var(--tx2);display:block;margin-bottom:5px}
+.card{background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:1.25rem}
+.pill{display:inline-flex;align-items:center;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px}
+.pb{background:rgba(79,156,249,0.15);color:var(--ac)}.pg{background:rgba(45,184,122,0.1);color:var(--gr)}
+.pa{background:rgba(240,160,48,0.1);color:var(--or)}.pr{background:rgba(232,85,85,0.1);color:var(--rd)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:flex-end;justify-content:center;z-index:100}
+.modal{background:var(--bg2);border:1px solid var(--bd2);border-radius:12px 12px 0 0;padding:1.5rem;width:100%;max-width:480px;max-height:88vh;overflow-y:auto}
+.nav{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--bd);display:flex;z-index:50;max-width:480px;margin:0 auto}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0;color:var(--tx3);font-size:10px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;border:none;background:none}
+.ni.on{color:var(--ac)}
+.pg2{max-width:480px;margin:0 auto;padding:0 1rem 5rem;min-height:100vh}
+.ph{padding:1.25rem 0 1rem;display:flex;align-items:center;justify-content:space-between}
+.pt{font-size:22px;font-weight:800;letter-spacing:-.5px}
+.cgr{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cdow{text-align:center;font-size:10px;font-weight:600;color:var(--tx3);padding:6px 0;letter-spacing:.06em;text-transform:uppercase}
+.cd{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;border-radius:7px;cursor:pointer;position:relative;flex-direction:column;gap:2px;transition:background .1s}
+.cd:hover{background:var(--bg3)}.cd.today{border:1.5px solid var(--ac);color:var(--ac)}.cd.empty{cursor:default}
+.slab{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin-bottom:10px}
+.tag{padding:6px 12px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid var(--bd2);color:var(--tx2);cursor:pointer;background:transparent}
+.tag:hover{border-color:var(--ac);color:var(--ac)}.tag.sel{background:rgba(79,156,249,0.15);border-color:var(--ac);color:var(--ac)}
+.tgr{display:flex;flex-wrap:wrap;gap:6px}
+.sc{background:var(--bg3);border-radius:8px;padding:12px;text-align:center}
+.sv{font-size:22px;font-weight:700}.sl{font-size:10px;color:var(--tx3);letter-spacing:.04em;text-transform:uppercase;margin-top:2px}
+.mnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.ml{font-size:16px;font-weight:700}
+.mb{width:32px;height:32px;border-radius:50%;background:var(--bg3);border:1px solid var(--bd);color:var(--tx2);display:flex;align-items:center;justify-content:center;transition:all .12s}
+.mb:hover{background:var(--bg2);color:var(--tx)}
+.li{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--bd)}
+.li:last-child{border-bottom:none}
+.lic{width:36px;height:36px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--tx2)}
+.ob{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem 1rem}
+.oc{width:100%;max-width:400px;background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:2rem}
+.logo{font-size:28px;font-weight:800;margin-bottom:.25rem}.logo span{color:var(--ac)}
+.sdot{width:6px;height:6px;border-radius:3px;background:var(--bd2);transition:all .2s;display:inline-block}
+.sdot.on{width:18px;background:var(--ac)}.sdot.dn{background:var(--gr)}
+.sbox{background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:10px 14px;font-family:monospace;font-size:12px;color:var(--ac);word-break:break-all}
+.tog{width:40px;height:22px;border-radius:11px;background:var(--bg3);border:1px solid var(--bd2);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.tog.on{background:var(--ac);border-color:var(--ac)}
+.tok{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:white;transition:transform .2s}
+.tog.on .tok{transform:translateX(18px)}
+.hr-row{display:flex;align-items:center;gap:10px;background:var(--bg3);border-radius:8px;padding:10px 14px;border:1px solid var(--bd)}
+.hr-row label{margin:0;flex:1;font-size:13px;color:var(--tx2)}
 </style>
-<div class="root">
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ─── Constants ────────────────────────────────────────────────────────────────
+var LOC_COLORS = ['#4f9cf9','#2db87a','#f0a030','#e85555','#a064f0','#f06090'];
+var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var ROTATION_PRESETS = [
+  {id:'10on4off',label:'10-on / 4-off',on:10,off:4},
+  {id:'panama',label:'Panama (2-2-3)',on:null,off:null,custom:[2,2,3,2,3,2,2]},
+  {id:'pitman',label:'Pitman (2-3-2-2)',on:null,off:null,custom:[2,3,2,2]},
+  {id:'3on4off',label:'3-on / 4-off',on:3,off:4},
+  {id:'4on3off',label:'4-on / 3-off',on:4,off:3},
+  {id:'2on2off',label:'2-on / 2-off',on:2,off:2},
+  {id:'5on2off',label:'5-on / 2-off',on:5,off:2},
+  {id:'manual',label:'Manual / ad-hoc',on:null,off:null},
+  {id:'custom',label:'Custom pattern...',on:null,off:null}
+];
+var OVERRIDE_TAGS = ['Stayed late','Left early','Called in','No show','Extra shift','Event extended','Covered colleague','Training day','On-call activated'];
+var DEFAULT_PAY_RULES = [
+  {id:'base',label:'Regular shift (first 8h)',condition:'Scheduled work day',multiplier:1.0},
+  {id:'daily_ot',label:'Daily OT (over 8h)',condition:'Any day, hours beyond 8',multiplier:1.5},
+  {id:'ot_off',label:'Called in on off day (OT)',condition:'Off day, Fri or Sun',multiplier:1.5},
+  {id:'dt_off',label:'Called in on off day (DT)',condition:'Off day, Sat or Mon',multiplier:2.0},
+  {id:'hol_off',label:'Holiday not worked',condition:'Federal holiday, off',multiplier:1.0},
+  {id:'hol_work',label:'Holiday worked',condition:'Federal holiday, worked',multiplier:2.0}
+];
+// Standard rules for most part-time / second jobs — simple OT, no DT
+var STANDARD_PAY_RULES = [
+  {id:'base',label:'Regular hours',condition:'Scheduled work day',multiplier:1.0},
+  {id:'daily_ot',label:'OT (over 8h in one day)',condition:'Any day, hours beyond 8',multiplier:1.5},
+  {id:'ot_off',label:'Called in extra (OT)',condition:'Any extra / off day callout',multiplier:1.5},
+  {id:'dt_off',label:'Double time',condition:'Not typically applicable',multiplier:2.0},
+  {id:'hol_off',label:'Holiday not worked',condition:'Federal holiday, off',multiplier:1.0},
+  {id:'hol_work',label:'Holiday worked',condition:'Federal holiday, worked',multiplier:1.5}
+];
+// Pay rule preset templates users can apply with one tap
+var PAY_RULE_PRESETS = [
+  {id:'federal',label:'Federal / Gov (OT + DT)',desc:'OT on off-day Fri/Sun, DT on Sat/Mon, holiday pay',rules:DEFAULT_PAY_RULES},
+  {id:'standard',label:'Standard hourly (OT only)',desc:'1.5x after 8h/day or any extra shift, no DT',rules:STANDARD_PAY_RULES},
+  {id:'nurse',label:'Nursing / Healthcare',desc:'1.5x OT after 8h, 2x over 12h, holiday 1.5x',rules:[
+    {id:'base',label:'Regular hours (first 8h)',condition:'Scheduled shift',multiplier:1.0},
+    {id:'daily_ot',label:'OT (8-12h)',condition:'Hours 8-12 in one day',multiplier:1.5},
+    {id:'ot_off',label:'Over 12h in one day',condition:'Hours beyond 12',multiplier:2.0},
+    {id:'dt_off',label:'Called in extra',condition:'Off day callout',multiplier:1.5},
+    {id:'hol_off',label:'Holiday not worked',condition:'Federal holiday',multiplier:1.0},
+    {id:'hol_work',label:'Holiday worked',condition:'Federal holiday, worked',multiplier:1.5}
+  ]},
+  {id:'parttime',label:'Part-time / Per-diem',desc:'Straight hourly, 1.5x OT only when over 40h/week',rules:[
+    {id:'base',label:'Regular hours',condition:'All scheduled hours',multiplier:1.0},
+    {id:'daily_ot',label:'Weekly OT (over 40h)',condition:'Hours beyond 40/week',multiplier:1.5},
+    {id:'ot_off',label:'Extra shift',condition:'Any unscheduled callout',multiplier:1.0},
+    {id:'dt_off',label:'Double time',condition:'Not applicable',multiplier:1.5},
+    {id:'hol_off',label:'Holiday not worked',condition:'Federal holiday',multiplier:1.0},
+    {id:'hol_work',label:'Holiday worked',condition:'Federal holiday, worked',multiplier:1.5}
+  ]},
+  {id:'retail',label:'Retail / Service',desc:'Standard 1.5x OT, holiday pay at 1.5x',rules:[
+    {id:'base',label:'Regular hours',condition:'Scheduled shift',multiplier:1.0},
+    {id:'daily_ot',label:'OT (over 8h)',condition:'Hours beyond 8 in one day',multiplier:1.5},
+    {id:'ot_off',label:'Called in extra',condition:'Off day callout',multiplier:1.5},
+    {id:'dt_off',label:'Weekend extra',condition:'Weekend off day callout',multiplier:1.5},
+    {id:'hol_off',label:'Holiday not worked',condition:'Federal holiday',multiplier:1.0},
+    {id:'hol_work',label:'Holiday worked',condition:'Federal holiday, worked',multiplier:1.5}
+  ]}
+];
+var DEFAULT_DIFFS = [
+  {id:'swing',label:'Swing shift differential',applyTo:['base'],amount:1.35,amountOT:2.03,amountDT:2.70,enabled:true},
+  {id:'pic',label:'Person in charge (PIC)',applyTo:['weekend_on'],amount:1.50,amountOT:1.50,amountDT:1.50,enabled:true}
+];
 
-  <div class="step">
-    <div class="step-left"><div class="snum">1</div><div class="sline"></div></div>
-    <div class="sbody">
-      <div class="stitle">Download ShiftStack from this chat</div>
-      <div class="sdesc">Click the download icon on the ShiftStack file above. It saves as <span class="code">ShiftStack.html</span> to your Downloads folder.</div>
-    </div>
-  </div>
+// ─── State ────────────────────────────────────────────────────────────────────
+var ld = function(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}};
+var sv = function(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
 
-  <div class="step">
-    <div class="step-left"><div class="snum">2</div><div class="sline"></div></div>
-    <div class="sbody">
-      <div class="stitle">Rename it to <span class="code">index.html</span></div>
-      <div class="sdesc">Vercel serves the file called <span class="code">index.html</span> as the homepage. Without this rename it won't load.</div>
-      <div class="snote">Right-click the file → Rename → type <strong>index.html</strong> → hit Enter</div>
-    </div>
-  </div>
+var STATE = {
+  user: ld('ss_user',null),
+  overrides: ld('ss_overrides',{}),
+  pay: ld('ss_pay',{rateHistory:[],payPeriodAnchor:fmtDate(new Date()),raiseMonth:'10',differentials:DEFAULT_DIFFS,payRules:DEFAULT_PAY_RULES,locPaySettings:[]}),
+  tab: 'calendar',
+  modal: null,  // {key, data}
+  calMonth: new Date().getMonth(),
+  calYear: new Date().getFullYear(),
+  // onboard
+  ob: {step:0,name:'',handle:'',presetId:'10on4off',anchorDate:fmtDate(new Date()),customPat:'',locs:[{id:0,name:'Primary Job',color:'#4f9cf9'}],newLoc:''},
+  // settings
+  settingsTab: 'share',
+  // hours
+  payPeriodIdx: null,
+  expandedDay: null,
+  payView: 'all',
+  // group
+  friends: ld('ss_friends',[]),
+  groupHandle: '',
+  groupMonth: new Date().getMonth(),
+  groupYear: new Date().getFullYear()
+};
 
-  <div class="step">
-    <div class="step-left"><div class="snum">3</div><div class="sline"></div></div>
-    <div class="sbody">
-      <div class="stitle">Create a new GitHub repo</div>
-      <div class="sdesc">Go to <strong>github.com</strong> → click the <strong>+</strong> in the top right → <strong>New repository</strong>. Name it <span class="code">shiftstack</span>. Set it to Public. Click <strong>Create repository</strong>.</div>
-      <div class="snote">Same steps as when you created the LIV repo. You've done this before.</div>
-    </div>
-  </div>
+function fmtDate(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function pad(n){return String(n).padStart(2,'0');}
+function todayKey(){return fmtDate(new Date());}
+function fmt$(n){return n.toLocaleString('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2});}
+function fmtH(n){return n%1===0?n+'h':n.toFixed(1)+'h';}
 
-  <div class="step">
-    <div class="step-left"><div class="snum">4</div><div class="sline"></div></div>
-    <div class="sbody">
-      <div class="stitle">Upload index.html to the repo</div>
-      <div class="sdesc">On your new empty repo page, click <strong>Add file → Upload files</strong>. Drag your <span class="code">index.html</span> in. Scroll down and click <strong>Commit changes</strong>.</div>
-      <span class="tag-g">One file only — that's the whole app</span>
-    </div>
-  </div>
+// ─── Schedule builder ─────────────────────────────────────────────────────────
+function buildSingleRot(rot){
+  if(!rot||!rot.anchorDate) return {};
+  var out={}, anchor=new Date(rot.anchorDate+'T00:00:00'), locId=rot.locationId||0;
+  if(rot.presetId==='manual'){
+    for(var d=-30;d<400;d++){var dt=new Date(anchor);dt.setDate(anchor.getDate()+d);out[fmtDate(dt)]={work:false,locationId:locId,manual:true};}
+    return out;
+  }
+  var preset=null;
+  for(var i=0;i<ROTATION_PRESETS.length;i++){if(ROTATION_PRESETS[i].id===rot.presetId){preset=ROTATION_PRESETS[i];break;}}
+  if(!preset) return {};
+  var pat=[];
+  if(preset.on!==null){for(var i=0;i<preset.on;i++)pat.push(true);for(var i=0;i<preset.off;i++)pat.push(false);}
+  else if(preset.custom){var w=true;for(var i=0;i<preset.custom.length;i++){for(var j=0;j<preset.custom[i];j++)pat.push(w);w=!w;}}
+  else if(rot.customPattern){try{var pts=rot.customPattern.split(',');var w2=true;for(var i=0;i<pts.length;i++){var n=parseInt(pts[i]);if(!isNaN(n))for(var j=0;j<n;j++)pat.push(w2);w2=!w2;}}catch(e){}}
+  if(!pat.length) return {};
+  for(var d=-30;d<400;d++){
+    var dt=new Date(anchor);dt.setDate(anchor.getDate()+d);
+    var key=fmtDate(dt),diff=Math.floor((dt-anchor)/86400000),idx=((diff%pat.length)+pat.length)%pat.length;
+    out[key]={work:pat[idx],locationId:pat[idx]?locId:null};
+  }
+  return out;
+}
 
-  <div class="step">
-    <div class="step-left"><div class="snum">5</div><div class="sline"></div></div>
-    <div class="sbody">
-      <div class="stitle">Import to Vercel</div>
-      <div class="sdesc">Go to <strong>vercel.com</strong> → <strong>Add New Project</strong> → <strong>Import Git Repository</strong> → find your <span class="code">shiftstack</span> repo → click <strong>Deploy</strong>. No settings to change. Leave everything default.</div>
-      <div class="warn">When it asks about Framework Preset — leave it on <strong>Other</strong>. Do not select React, Next.js, or anything else. It's a plain HTML file.</div>
-    </div>
-  </div>
+function buildSchedule(rotations,overrides){
+  var merged={};
+  (rotations||[]).forEach(function(rot){
+    var s=buildSingleRot(rot);
+    Object.keys(s).forEach(function(key){
+      var val=s[key];
+      if(!merged[key]){merged[key]=Object.assign({},val);}
+      else if(val.work){
+        if(!merged[key].work){merged[key].work=true;merged[key].locationId=val.locationId;}
+        else{merged[key].conflict=true;if(!merged[key].secondaryLocations)merged[key].secondaryLocations=[];merged[key].secondaryLocations.push(val.locationId);}
+      }
+    });
+  });
+  Object.keys(overrides||{}).forEach(function(key){
+    if(merged[key])merged[key].override=overrides[key];
+    else merged[key]={work:false,locationId:null,override:overrides[key]};
+  });
+  return merged;
+}
 
-  <div class="step">
-    <div class="step-left"><div class="snum">6</div><div class="sline"></div></div>
-    <div class="sbody">
-      <div class="stitle">Your live URL appears in ~30 seconds</div>
-      <div class="sdesc">Vercel gives you a URL like <span class="code">shiftstack.vercel.app</span>. Open it on your phone. You'll see the onboarding screen — go through it with your real info. Set your 10-on/4-off rotation, anchor date, and pay rate.</div>
-      <span class="tag-b">This is your real app from now on</span>
-    </div>
-  </div>
+function getRotations(){
+  var u=STATE.user;
+  if(!u) return [];
+  if(u.rotations&&u.rotations.length) return u.rotations;
+  if(u.rotation) return [Object.assign({},u.rotation,{locationId:0})];
+  return [];
+}
 
-  <div class="step">
-    <div class="step-left"><div class="snum">7</div><div class="sline"></div></div>
-    <div class="sbody">
-      <div class="stitle">Future updates — dead simple</div>
-      <div class="sdesc">Whenever we update the file here in Claude: download the new version → rename to <span class="code">index.html</span> → go to your GitHub repo → click the existing <span class="code">index.html</span> → click the pencil/edit icon → drag the new file in → commit. Vercel auto-deploys in 30 seconds.</div>
-      <div class="snote">No terminal. No build commands. No npm. Just drag, commit, done.</div>
-    </div>
-  </div>
+function getSchedule(){return buildSchedule(getRotations(),STATE.overrides);}
 
-</div>
+// ─── Pay engine ───────────────────────────────────────────────────────────────
+function getFedHolidays(year){
+  function nth(m,dow,n){var c=0,dim=new Date(year,m,0).getDate();for(var d=1;d<=dim;d++){var dt=new Date(year,m-1,d);if(dt.getDay()===dow){c++;if(c===n)return fmtDate(dt);}}return null;}
+  function last(m,dow){var dim=new Date(year,m,0).getDate();for(var d=dim;d>=1;d--){var dt=new Date(year,m-1,d);if(dt.getDay()===dow)return fmtDate(dt);}return null;}
+  var h=[year+'-01-01',year+'-06-19',year+'-07-04',year+'-11-11',year+'-12-25'];
+  h.push(nth(1,1,3),nth(2,1,3),last(5,1),nth(9,1,1),nth(10,1,2),nth(11,4,4));
+  return h.filter(Boolean);
+}
+function getHolidays(periodDays){
+  var years={};
+  periodDays.forEach(function(k){years[k.slice(0,4)]=1;});
+  var h=[];
+  Object.keys(years).forEach(function(y){h=h.concat(getFedHolidays(parseInt(y)));});
+  return h;
+}
+function getCurrPeriodIdx(anchor){return Math.floor((new Date()-new Date(anchor+'T00:00:00'))/86400000/14);}
+function getPeriod(anchor,idx){
+  var a=new Date(anchor+'T00:00:00'),s=new Date(a);s.setDate(a.getDate()+idx*14);
+  var e=new Date(s);e.setDate(s.getDate()+13);
+  return {start:fmtDate(s),end:fmtDate(e)};
+}
+function getEffRate(rh,dateKey){
+  if(!rh||!rh.length) return 0;
+  var sorted=rh.slice().sort(function(a,b){return b.effectiveDate<a.effectiveDate?1:-1;});
+  for(var i=0;i<sorted.length;i++){if(sorted[i].effectiveDate<=dateKey)return sorted[i].rate;}
+  return sorted[sorted.length-1].rate;
+}
+function classifyDay(dateKey,sched,holidays,payRules){
+  var rules=payRules&&payRules.length?payRules:DEFAULT_PAY_RULES;
+  function m(id,def){for(var i=0;i<rules.length;i++){if(rules[i].id===id)return rules[i].multiplier;}return def;}
+  var isHol=holidays.indexOf(dateKey)!==-1,isWork=!!(sched&&sched.work),dow=new Date(dateKey+'T00:00:00').getDay();
+  if(isHol&&!isWork) return {type:'hol_off',label:'Holiday (off)',badge:'pr',mult:m('hol_off',1.0)};
+  if(isHol&&isWork)  return {type:'hol_work',label:'Holiday worked',badge:'pr',mult:m('hol_work',2.0)};
+  if(!isWork){
+    if(dow===6||dow===1) return {type:'dt_off',label:'Double time',badge:'pb',mult:m('dt_off',2.0)};
+    return {type:'ot_off',label:'OT (off day)',badge:'pa',mult:m('ot_off',1.5)};
+  }
+  return {type:'base',label:'Regular',badge:null,mult:m('base',1.0)};
+}
+function calcPay(dateKey,sched,ov,rh,holidays,payRules,diffs){
+  var rate=getEffRate(rh,dateKey);
+  if(!rate) return {base:0,ot:0,dt:0,holiday:0,diff:0,total:0,breakdown:[],cl:{type:'base',label:'Regular',badge:null,mult:1.0},hrs:0,rate:0};
+  var rules=payRules&&payRules.length?payRules:DEFAULT_PAY_RULES;
+  var alldiffs=diffs!==undefined?diffs:DEFAULT_DIFFS;
+  var cl=classifyDay(dateKey,sched,holidays,rules);
+  var hrs=ov&&ov.actualHours!=null?ov.actualHours:(sched&&sched.work?8:0);
+  var dow=new Date(dateKey+'T00:00:00').getDay();
+  var weekend=sched&&sched.work&&(dow===5||dow===6||dow===0||dow===1);
+  function m(id,def){for(var i=0;i<rules.length;i++){if(rules[i].id===id)return rules[i].multiplier;}return def;}
+  var base=0,ot=0,dt=0,holiday=0,diff=0,breakdown=[];
+  var holM=m('hol_off',1.0),dotM=m('daily_ot',1.5);
+  if(cl.type==='hol_off'){var a=8*rate*holM;holiday+=a;breakdown.push({label:'8h holiday pay',amount:a});}
+  else if(cl.type==='hol_work'){var a=8*rate*holM;holiday+=a;breakdown.push({label:'8h holiday pay',amount:a});if(hrs>0){var b=hrs*rate*cl.mult;dt+=b;breakdown.push({label:hrs+'h worked @ '+cl.mult+'x DT',amount:b});}}
+  else if(cl.type==='dt_off'){var a=hrs*rate*cl.mult;dt+=a;breakdown.push({label:hrs+'h @ '+cl.mult+'x DT',amount:a});}
+  else if(cl.type==='ot_off'){var a=hrs*rate*cl.mult;ot+=a;breakdown.push({label:hrs+'h @ '+cl.mult+'x OT',amount:a});}
+  else{var rh2=Math.min(hrs,8),ex=Math.max(0,hrs-8);if(rh2>0){var a=rh2*rate;base+=a;breakdown.push({label:rh2+'h base',amount:a});}if(ex>0){var a=ex*rate*dotM;ot+=a;breakdown.push({label:ex+'h OT (over 8h)',amount:a});}}
+  (alldiffs||[]).filter(function(d){return d.enabled;}).forEach(function(d){
+    var applies=false,dr=d.amount||0;
+    if((d.applyTo||[]).indexOf('base')!==-1&&(cl.type==='base'||cl.type==='hol_work')){applies=true;dr=d.amount||0;}
+    if((d.applyTo||[]).indexOf('ot')!==-1&&cl.type==='ot_off'){applies=true;dr=d.amountOT||d.amount||0;}
+    if((d.applyTo||[]).indexOf('dt')!==-1&&cl.type==='dt_off'){applies=true;dr=d.amountDT||d.amount||0;}
+    if((d.applyTo||[]).indexOf('weekend_on')!==-1&&weekend&&cl.type==='base'){applies=true;dr=d.amount||0;}
+    if(applies&&dr>0&&hrs>0){var a=dr*hrs;diff+=a;breakdown.push({label:d.label+' (+$'+dr.toFixed(2)+'/h)',amount:a});}
+  });
+  return {base:base,ot:ot,dt:dt,holiday:holiday,diff:diff,total:base+ot+dt+holiday+diff,breakdown:breakdown,cl:cl,hrs:hrs,rate:rate};
+}
+
+// ─── DOM helpers ──────────────────────────────────────────────────────────────
+function el(tag,attrs,children){
+  var e=document.createElement(tag);
+  if(attrs) Object.keys(attrs).forEach(function(k){
+    if(k==='class'){e.className=attrs[k];}
+    else if(k==='style'&&typeof attrs[k]==='object'){Object.assign(e.style,attrs[k]);}
+    else if(k.startsWith('on')){e.addEventListener(k.slice(2).toLowerCase(),attrs[k]);}
+    else if(k==='html'){e.innerHTML=attrs[k];}
+    else e.setAttribute(k,attrs[k]);
+  });
+  if(children) (Array.isArray(children)?children:[children]).forEach(function(c){
+    if(c==null||c===false||c===undefined) return;
+    if(typeof c==='string'||typeof c==='number') e.appendChild(document.createTextNode(String(c)));
+    else if(c instanceof Node) e.appendChild(c);
+  });
+  return e;
+}
+function txt(t){return document.createTextNode(String(t||''));}
+function div(a,c){return el('div',a,c);}
+function btn(a,c){return el('button',Object.assign({type:'button'},a),c);}
+function inp(a){return el('input',a);}
+function sel(a,opts,curVal){
+  var s=el('select',a);
+  opts.forEach(function(o){var op=el('option',{value:o.value},o.label);if(o.value===curVal)op.selected=true;s.appendChild(op);});
+  return s;
+}
+function svgIcon(path,size){
+  size=size||20;
+  var ns='http://www.w3.org/2000/svg';
+  var s=document.createElementNS(ns,'svg');
+  s.setAttribute('width',size);s.setAttribute('height',size);s.setAttribute('viewBox','0 0 24 24');
+  s.setAttribute('fill','none');s.setAttribute('stroke','currentColor');s.setAttribute('stroke-width','1.8');
+  s.setAttribute('stroke-linecap','round');s.setAttribute('stroke-linejoin','round');
+  s.innerHTML=path;
+  return s;
+}
+var ICONS={
+  cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  clk:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  usr:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
+  shr:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>',
+  pls:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  tsh:'<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>',
+  chk:'<polyline points="20 6 9 17 4 12"/>',
+  chl:'<polyline points="15 18 9 12 15 6"/>',
+  chr:'<polyline points="9 18 15 12 9 6"/>',
+  cpy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>',
+  x:'<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'
+};
+function ic(name,size){return svgIcon(ICONS[name]||'',size);}
+
+// ─── Render engine ────────────────────────────────────────────────────────────
+var app=document.getElementById('app');
+function render(){
+  while(app.firstChild) app.removeChild(app.firstChild);
+  var params=new URLSearchParams(window.location.search);
+  var pub=params.get('view');
+  if(pub){app.appendChild(renderPublic(pub));return;}
+  if(!STATE.user){app.appendChild(renderOnboard());return;}
+  app.appendChild(renderApp());
+}
+
+// ─── Onboarding ───────────────────────────────────────────────────────────────
+function renderOnboard(){
+  var ob=STATE.ob;
+  var wrap=div({class:'ob'});
+  var card=div({class:'oc fu'});
+  wrap.appendChild(card);
+  card.appendChild(div({class:'logo'},['Shift',el('span',null,'Stack')]));
+  card.appendChild(el('p',{style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1.25rem'}},'Your shift schedule, organized.'));
+  var dots=div({style:{display:'flex',gap:'6px',marginBottom:'1.5rem'}});
+  [0,1,2,3].forEach(function(i){dots.appendChild(div({class:'sdot'+(i===ob.step?' on':i<ob.step?' dn':'')}));});
+  card.appendChild(dots);
+  var content=div({class:'fu'});
+  card.appendChild(content);
+
+  if(ob.step===0){
+    content.appendChild(el('p',{style:{fontSize:'14px',color:'var(--tx2)',lineHeight:'1.7',marginBottom:'1.5rem'}},'Built for shift workers - nurses, military, factory workers, firefighters. Input your rotation once.'));
+    content.appendChild(el('label',null,'Your name'));
+    var ni=inp({placeholder:'John Smith',value:ob.name||''});
+    ni.addEventListener('input',function(){STATE.ob.name=this.value;});
+    content.appendChild(ni);
+    content.appendChild(div({style:{height:'1rem'}}));
+    content.appendChild(btn({class:'btn bp',style:{width:'100%'},onclick:function(){STATE.ob.step=1;render();}},['Get started']));
+  }
+  else if(ob.step===1){
+    content.appendChild(el('p',{style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1rem'}},'Pick a unique handle - this becomes your shareable link.'));
+    content.appendChild(el('label',null,'Your ShiftStack handle'));
+    var hw=div({style:{position:'relative',marginBottom:'8px'}});
+    hw.appendChild(div({style:{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)',fontSize:'13px',color:'var(--tx3)'}},'shiftstack.app/'));
+    var hi=inp({placeholder:'tim_t',value:ob.handle||''});
+    hi.style.paddingLeft='115px';
+    hi.addEventListener('input',function(){
+    STATE.ob.handle=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'');
+    // Update just the availability message without full re-render
+    var reserved=['admin','api','app','demo','test','login'];
+    var ok=STATE.ob.handle&&STATE.ob.handle.length>=3&&reserved.indexOf(STATE.ob.handle)===-1;
+    var avail=document.getElementById('handle-avail');
+    if(avail){
+      if(STATE.ob.handle&&STATE.ob.handle.length>0){
+        avail.textContent=ok?'Available':'Too short or unavailable';
+        avail.style.color=ok?'var(--gr)':'var(--rd)';
+        avail.style.display='block';
+      } else { avail.style.display='none'; }
+    }
+    var cb=document.getElementById('handle-continue');
+    if(cb) cb.disabled=!ok;
+  });
+    hw.appendChild(hi);
+    content.appendChild(hw);
+    var reserved=['admin','api','app','demo','test','login'];
+    var ok=ob.handle&&ob.handle.length>=3&&reserved.indexOf(ob.handle)===-1;
+    var availDiv=div({style:{fontSize:'12px',color:ok?'var(--gr)':'var(--rd)',marginBottom:'1rem',display:ob.handle&&ob.handle.length>0?'block':'none'},id:'handle-avail'},ok?'Available':'Too short or unavailable');
+    content.appendChild(availDiv);
+    var row=div({style:{display:'flex',gap:'8px',marginTop:'1rem'}});
+    row.appendChild(btn({class:'btn bg',onclick:function(){STATE.ob.step=0;render();}},'Back'));
+    var cb=btn({class:'btn bp',style:{flex:'1'},id:'handle-continue',onclick:function(){var reserved2=['admin','api','app','demo','test','login'];var ok2=STATE.ob.handle&&STATE.ob.handle.length>=3&&reserved2.indexOf(STATE.ob.handle)===-1;if(ok2){STATE.ob.step=2;render();}}},['Continue']);
+    cb.disabled=!ok;
+    row.appendChild(cb);
+    content.appendChild(row);
+  }
+  else if(ob.step===2){
+    content.appendChild(el('p',{style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1rem'}},"Choose your rotation. We'll auto-fill your whole year."));
+    content.appendChild(el('label',null,'Rotation type'));
+    var rsel=sel({style:{marginBottom:'1rem'}},ROTATION_PRESETS.filter(function(p){return p.id!=='manual';}).map(function(p){return {value:p.id,label:p.label};}),ob.presetId||'10on4off');
+    rsel.addEventListener('change',function(){STATE.ob.presetId=this.value;render();});
+    content.appendChild(rsel);
+    if(ob.presetId==='custom'){
+      content.appendChild(el('label',null,'Custom pattern (e.g. 4,3 = 4 on, 3 off)'));
+      var ci=inp({placeholder:'4,3',value:ob.customPat||''});
+      ci.addEventListener('blur',function(){STATE.ob.customPat=this.value;});
+      ci.addEventListener('keydown',function(e){if(e.key==='Enter')this.blur();});
+      content.appendChild(ci);
+      content.appendChild(div({style:{height:'1rem'}}));
+    }
+    content.appendChild(el('label',null,'First day of your current cycle'));
+    var di=inp({type:'date',value:ob.anchorDate||fmtDate(new Date()),style:{marginBottom:'1rem'}});
+    di.addEventListener('change',function(){STATE.ob.anchorDate=this.value;});
+    content.appendChild(di);
+    var row=div({style:{display:'flex',gap:'8px',marginTop:'0.5rem'}});
+    row.appendChild(btn({class:'btn bg',onclick:function(){STATE.ob.step=1;render();}},'Back'));
+    row.appendChild(btn({class:'btn bp',style:{flex:'1'},onclick:function(){STATE.ob.step=3;render();}},'Continue'));
+    content.appendChild(row);
+  }
+  else if(ob.step===3){
+    content.appendChild(el('p',{style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1rem'}},'Add your work locations. Color-code each one.'));
+    ob.locs.forEach(function(loc){
+      var row=div({style:{display:'flex',alignItems:'center',gap:'10px',padding:'8px 0',borderBottom:'1px solid var(--bd)'}});
+      row.appendChild(div({style:{width:'10px',height:'10px',borderRadius:'50%',background:loc.color,flexShrink:'0'}}));
+      row.appendChild(div({style:{flex:'1',fontSize:'14px'}},loc.name));
+      if(ob.locs.length>1){
+        var rb=btn({class:'btn',style:{background:'none',border:'none',color:'var(--tx3)',padding:'4px'}});
+        rb.appendChild(ic('x',14));
+        rb.addEventListener('click',(function(lid){return function(){STATE.ob.locs=STATE.ob.locs.filter(function(l){return l.id!==lid;});render();};})(loc.id));
+        row.appendChild(rb);
+      }
+      content.appendChild(row);
+    });
+    if(ob.locs.length<5){
+      var addRow=div({style:{display:'flex',gap:'8px',marginTop:'10px',marginBottom:'1rem'}});
+      var li=inp({placeholder:'Add location (e.g. Hospital B)',value:ob.newLoc||''});
+      // newLoc stored on keydown/blur, not input (avoids re-render focus loss)
+      li.addEventListener('keydown',function(e){if(e.key==='Enter'&&STATE.ob.newLoc.trim()){var id=STATE.ob.locs.length;STATE.ob.locs.push({id:id,name:STATE.ob.newLoc.trim(),color:LOC_COLORS[id%LOC_COLORS.length]});STATE.ob.newLoc='';render();}});
+      addRow.appendChild(li);
+      var ab=btn({class:'btn bg bsm',onclick:function(){var nl=STATE.ob.newLoc.trim();if(nl){var id=STATE.ob.locs.length;STATE.ob.locs.push({id:id,name:nl,color:LOC_COLORS[id%LOC_COLORS.length]});STATE.ob.newLoc='';render();}}},['Add']);
+      addRow.appendChild(ab);
+      content.appendChild(addRow);
+    }
+    var row=div({style:{display:'flex',gap:'8px',marginTop:'1rem'}});
+    row.appendChild(btn({class:'btn bg',onclick:function(){STATE.ob.step=2;render();}},'Back'));
+    row.appendChild(btn({class:'btn bp',style:{flex:'1'},onclick:function(){
+      var rot={presetId:ob.presetId,anchorDate:ob.anchorDate,locationId:0,customPattern:ob.customPat};
+      var rots=ob.locs.map(function(loc){return loc.id===0?rot:{presetId:'manual',anchorDate:fmtDate(new Date()),locationId:loc.id,customPattern:''};});
+      var u={handle:ob.handle||'user',name:ob.name||'My Schedule',rotation:rot,rotations:rots,locations:ob.locs};
+      STATE.user=u;sv('ss_user',u);STATE.tab='calendar';render();
+    }},'Launch ShiftStack'));
+    content.appendChild(row);
+  }
+  return wrap;
+}
+
+// ─── Main App Shell ───────────────────────────────────────────────────────────
+function renderApp(){
+  var wrap=div({});
+  var page=div({});
+  var tab=STATE.tab;
+  if(tab==='calendar') page=renderCalendar();
+  else if(tab==='hours') page=renderHours();
+  else if(tab==='group') page=renderGroup();
+  else if(tab==='settings') page=renderSettings();
+  wrap.appendChild(page);
+  if(STATE.modal) wrap.appendChild(renderModal(STATE.modal.key,STATE.modal.data));
+  wrap.appendChild(renderNav());
+  return wrap;
+}
+
+function renderNav(){
+  var nav=el('nav',{class:'nav'});
+  var tabs=[{id:'calendar',ic:'cal',label:'Schedule'},{id:'hours',ic:'clk',label:'Hours'},{id:'group',ic:'usr',label:'Group'},{id:'settings',ic:'shr',label:'Share'}];
+  tabs.forEach(function(t){
+    var b=btn({class:'ni'+(STATE.tab===t.id?' on':'')});
+    b.appendChild(ic(t.ic,20));
+    b.appendChild(txt(t.label));
+    b.addEventListener('click',function(){STATE.tab=t.id;render();});
+    nav.appendChild(b);
+  });
+  return nav;
+}
+
+// ─── Calendar ─────────────────────────────────────────────────────────────────
+function renderCalendar(){
+  var sched=getSchedule();
+  var u=STATE.user,locs=u&&u.locations||[];
+  var month=STATE.calMonth,year=STATE.calYear;
+  var dim=new Date(year,month+1,0).getDate(),fdow=new Date(year,month,1).getDay();
+  var today=todayKey();
+
+  var work=0,off2=0,ot2=0;
+  for(var d=1;d<=dim;d++){var k=year+'-'+pad(month+1)+'-'+pad(d);var s=sched[k];if(s){if(s.work)work++;else off2++;if(s.override&&s.override.tag==='Stayed late')ot2++;}}
+
+  var pg=div({class:'pg2 fu'});
+  pg.appendChild(div({class:'ph'},[div({class:'pt'},'Calendar')]));
+  var stats=div({style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px',marginBottom:'1rem'}});
+  function statCard(val,label,color){var c=div({class:'sc'});c.appendChild(div({class:'sv',style:{color:color||'var(--tx)'}},String(val)));c.appendChild(div({class:'sl'},label));return c;}
+  stats.appendChild(statCard(work,'Work days','var(--ac)'));
+  stats.appendChild(statCard(off2,'Off days','var(--gr)'));
+  stats.appendChild(statCard(ot2,'OT logged','var(--or)'));
+  pg.appendChild(stats);
+
+  var card=div({class:'card',style:{padding:'1rem'}});
+  var mnav=div({class:'mnav'});
+  var prevB=btn({class:'mb'});prevB.appendChild(ic('chl',16));
+  prevB.addEventListener('click',function(){if(STATE.calMonth===0){STATE.calMonth=11;STATE.calYear--;}else STATE.calMonth--;render();});
+  mnav.appendChild(prevB);
+  mnav.appendChild(div({class:'ml'},MONTHS[month]+' '+year));
+  var nextB=btn({class:'mb'});nextB.appendChild(ic('chr',16));
+  nextB.addEventListener('click',function(){if(STATE.calMonth===11){STATE.calMonth=0;STATE.calYear++;}else STATE.calMonth++;render();});
+  mnav.appendChild(nextB);
+  card.appendChild(mnav);
+
+  var grid=div({class:'cgr'});
+  DAYS.forEach(function(d){grid.appendChild(div({class:'cdow'},d));});
+  for(var i=0;i<fdow;i++) grid.appendChild(div({class:'cd empty'}));
+  for(var d2=1;d2<=dim;d2++){
+    var key=year+'-'+pad(month+1)+'-'+pad(d2);
+    var s=sched[key];
+    var isToday=key===today;
+    var locId=s&&s.locationId!==null&&s.locationId!==undefined?s.locationId:null;
+    var loc=locId!==null?locs.find(function(l){return l.id===locId;}):null;
+    var isConflict=!!(s&&s.conflict);
+    var bg=isConflict?'rgba(232,85,85,0.22)':s&&s.work&&loc?loc.color+'33':'transparent';
+    var cdiv=div({class:'cd'+(isToday?' today':'')+(s&&s.work?' work':''),style:{background:bg}});
+    cdiv.appendChild(el('span',{style:{lineHeight:'1'}},String(d2)));
+    if(isConflict){
+      var dots=div({style:{display:'flex',gap:'2px',marginTop:'1px'}});
+      var allLocs=[loc].concat((s.secondaryLocations||[]).map(function(id){return locs.find(function(l){return l.id===id;});})).filter(Boolean);
+      allLocs.forEach(function(l){dots.appendChild(div({style:{width:'4px',height:'4px',borderRadius:'50%',background:l.color}}));});
+      cdiv.appendChild(dots);
+    } else if(s&&s.work&&loc){
+      cdiv.appendChild(div({style:{width:'5px',height:'5px',borderRadius:'50%',background:loc.color,marginTop:'1px'}}));
+    }
+    if(s&&s.override) cdiv.appendChild(div({style:{width:'4px',height:'4px',borderRadius:'50%',background:'var(--or)',position:'absolute',bottom:'3px'}}));
+    (function(k,sd){cdiv.addEventListener('click',function(){STATE.modal={key:k,data:sd||{work:false}};render();});})(key,s);
+    grid.appendChild(cdiv);
+  }
+  card.appendChild(grid);
+
+  var legend=div({style:{marginTop:'12px',display:'flex',gap:'10px',flexWrap:'wrap'}});
+  locs.forEach(function(loc){
+    var item=div({style:{display:'flex',alignItems:'center',gap:'5px',fontSize:'11px',color:'var(--tx3)'}});
+    item.appendChild(div({style:{width:'8px',height:'8px',borderRadius:'50%',background:loc.color}}));
+    item.appendChild(txt(loc.name));
+    legend.appendChild(item);
+  });
+  function legItem(color,label,radius){var item=div({style:{display:'flex',alignItems:'center',gap:'5px',fontSize:'11px',color:'var(--tx3)'}});item.appendChild(div({style:{width:'8px',height:'8px',borderRadius:radius||'50%',background:color}}));item.appendChild(txt(label));legend.appendChild(item);}
+  legItem('var(--or)','Override');
+  legItem('rgba(232,85,85,0.4)','Conflict','2px');
+  card.appendChild(legend);
+  pg.appendChild(card);
+  return pg;
+}
+
+// ─── Day Modal ────────────────────────────────────────────────────────────────
+function renderModal(dayKey,dayData){
+  var u=STATE.user, locs=u&&u.locations||[];
+  var d=new Date(dayKey+'T00:00:00');
+  var label=DAYS[d.getDay()]+', '+MONTHS[d.getMonth()]+' '+d.getDate();
+  var isWork=!!(dayData&&dayData.work);
+  var isConflict=!!(dayData&&dayData.conflict);
+
+  // Always show all jobs as tabs when multiple locations exist
+  var activeJobs=locs.length>1?locs.slice():(locs.length===1?[locs[0]]:[{id:0,name:'Primary Job',color:'#4f9cf9'}]);
+
+  // Load existing per-job overrides — keyed by string loc id
+  var existOv=STATE.overrides[dayKey]||{};
+  var perLoc={};
+  if(existOv.perLoc){
+    // Already in new format — copy as string keys
+    Object.keys(existOv.perLoc).forEach(function(k){perLoc[String(k)]=Object.assign({},existOv.perLoc[k]);});
+  } else if(existOv.tag||existOv.note||existOv.actualHours){
+    // Migrate old flat format to primary job
+    var firstKey=String(dayData&&dayData.locationId!==undefined?dayData.locationId:(locs.length?locs[0].id:0));
+    perLoc[firstKey]={tag:existOv.tag||'',note:existOv.note||'',actualHours:existOv.actualHours!=null?String(existOv.actualHours):''};
+  }
+  // Ensure every job has an entry
+  activeJobs.forEach(function(loc){
+    var k=String(loc.id);
+    if(!perLoc[k]) perLoc[k]={tag:'',note:'',actualHours:''};
+  });
+
+  // Default active tab = scheduled job for this day
+  var scheduledId=String(dayData&&dayData.locationId!=null?dayData.locationId:(locs.length?locs[0].id:0));
+  var activeTab=scheduledId;
+
+  var overlay=div({class:'overlay'});
+  overlay.addEventListener('click',function(){STATE.modal=null;render();});
+  var modal=div({class:'modal'});
+  modal.addEventListener('click',function(e){e.stopPropagation();});
+  overlay.appendChild(modal);
+
+  // Header
+  var header=div({style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'0.75rem'}});
+  header.appendChild(div({style:{fontSize:'18px',fontWeight:'700'}},label));
+  var hpills=div({style:{display:'flex',gap:'6px',alignItems:'center'}});
+  hpills.appendChild(div({class:'pill '+(isWork?'pb':'pg')},isWork?'Work day':'Off day'));
+  if(isConflict) hpills.appendChild(div({class:'pill pr'},'Both jobs'));
+  var xb=btn({class:'btn',style:{background:'none',border:'none',color:'var(--tx3)',padding:'4px'}});
+  xb.appendChild(ic('x',18));
+  xb.addEventListener('click',function(){STATE.modal=null;render();});
+  hpills.appendChild(xb);
+  header.appendChild(hpills);
+  modal.appendChild(header);
+
+  // Tab bar
+  var tabBar=div({style:{display:'flex',borderBottom:'1px solid var(--bd)',marginBottom:'1rem'}});
+  modal.appendChild(tabBar);
+
+  // Form container
+  var formWrap=div({});
+  modal.appendChild(formWrap);
+
+  function getTabOv(tabId){return perLoc[String(tabId)]||{tag:'',note:'',actualHours:''};}
+
+  function setTabStyle(){
+    var btns=tabBar.querySelectorAll('button');
+    activeJobs.forEach(function(loc,i){
+      var b=btns[i]; if(!b) return;
+      var on=activeTab===String(loc.id);
+      b.style.borderBottom=on?'2px solid '+loc.color:'2px solid transparent';
+      b.style.color=on?loc.color:'var(--tx3)';
+    });
+  }
+
+  function readForm(){
+    // Read current input values directly from DOM — don't rely on blur
+    var ta=formWrap.querySelector('textarea');
+    var hi=formWrap.querySelector('input[type=number]');
+    if(ta) perLoc[activeTab].note=ta.value;
+    if(hi) perLoc[activeTab].actualHours=hi.value;
+  }
+
+  function buildForm(){
+    while(formWrap.firstChild) formWrap.removeChild(formWrap.firstChild);
+    setTabStyle();
+
+    var ov=getTabOv(activeTab);
+    var loc=activeJobs.find(function(l){return String(l.id)===activeTab;})||activeJobs[0];
+
+    // Job label inside form
+    var jhead=div({style:{display:'flex',alignItems:'center',gap:'7px',marginBottom:'1rem',padding:'8px 12px',background:loc.color+'18',borderRadius:'8px',border:'1px solid '+loc.color+'44'}});
+    jhead.appendChild(div({style:{width:'8px',height:'8px',borderRadius:'50%',background:loc.color,flexShrink:'0'}}));
+    jhead.appendChild(el('span',{style:{fontSize:'13px',fontWeight:'500',color:loc.color}},loc.name));
+    formWrap.appendChild(jhead);
+
+    // Reason tags
+    formWrap.appendChild(div({class:'slab'},'Reason / override'));
+    var tgr=div({class:'tgr',style:{marginBottom:'1rem'}});
+    OVERRIDE_TAGS.forEach(function(t){
+      var curSel=ov.tag===t;
+      var tb=btn({class:'tag'+(curSel?' sel':'')},t);
+      tb.addEventListener('click',function(){
+        // Read form first, then update tag
+        readForm();
+        var wasSelected=perLoc[activeTab].tag===t;
+        perLoc[activeTab].tag=wasSelected?'':t;
+        // Refresh just the tag buttons
+        tgr.querySelectorAll('button').forEach(function(b){b.className='tag'+(b.textContent===perLoc[activeTab].tag?' sel':'');});
+      });
+      tgr.appendChild(tb);
+    });
+    formWrap.appendChild(tgr);
+
+    // Notes
+    formWrap.appendChild(el('label',null,'Notes'));
+    var ta=el('textarea',{placeholder:'e.g. Launch scrubbed, held on console until 0300...',style:{marginBottom:'1rem',minHeight:'64px',resize:'vertical'}},ov.note||'');
+    formWrap.appendChild(ta);
+
+    // Hours
+    var hrRow=div({class:'hr-row',style:{marginBottom:'1.25rem'}});
+    hrRow.appendChild(el('label',null,'Actual hours worked'));
+    var hi=inp({type:'number',placeholder:'8.0',min:'0',max:'24',step:'0.5',value:ov.actualHours!=null&&ov.actualHours!==''?ov.actualHours:'',style:{width:'70px',textAlign:'center'}});
+    hrRow.appendChild(hi);
+    formWrap.appendChild(hrRow);
+
+    // Buttons
+    var brow=div({style:{display:'flex',gap:'8px'}});
+    var hasAny=Object.keys(perLoc).some(function(k){var o=perLoc[k];return o.tag||o.note||o.actualHours;});
+    if(hasAny){
+      var clrB=btn({class:'btn bd2c bsm',onclick:function(){
+        var nOv=Object.assign({},STATE.overrides);
+        delete nOv[dayKey];
+        STATE.overrides=nOv;sv('ss_overrides',nOv);STATE.modal=null;render();
+      }},'Clear all');
+      brow.appendChild(clrB);
+    }
+    brow.appendChild(btn({class:'btn bp',style:{flex:'1'},onclick:function(){
+      // Read form values directly at save time — no blur dependency
+      var taCur=formWrap.querySelector('textarea');
+      var hiCur=formWrap.querySelector('input[type=number]');
+      if(taCur) perLoc[activeTab].note=taCur.value;
+      if(hiCur) perLoc[activeTab].actualHours=hiCur.value;
+
+      var nOv=Object.assign({},STATE.overrides);
+      var hasData=Object.keys(perLoc).some(function(k){var o=perLoc[k];return o.tag||o.note||o.actualHours;});
+      if(hasData){
+        var clean={};
+        Object.keys(perLoc).forEach(function(k){
+          var o=perLoc[k];
+          if(o.tag||o.note||o.actualHours){
+            clean[k]={tag:o.tag||'',note:o.note||'',actualHours:o.actualHours!==''&&o.actualHours!=null?parseFloat(o.actualHours):null};
+          }
+        });
+        // Keep first job's data at top level for backwards compat
+        var firstKey=Object.keys(clean)[0];
+        nOv[dayKey]=Object.assign({},clean[firstKey]||{},{perLoc:clean});
+      } else {
+        delete nOv[dayKey];
+      }
+      STATE.overrides=nOv;sv('ss_overrides',nOv);STATE.modal=null;render();
+    }},'Save'));
+    formWrap.appendChild(brow);
+  }
+
+  // Build tabs
+  if(activeJobs.length>1){
+    activeJobs.forEach(function(loc){
+      var tb=btn({style:{padding:'7px 14px',fontSize:'12px',fontWeight:'500',background:'none',border:'none',
+        borderBottom:activeTab===String(loc.id)?'2px solid '+loc.color:'2px solid transparent',
+        color:activeTab===String(loc.id)?loc.color:'var(--tx3)',
+        cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',gap:'5px'}});
+      tb.appendChild(div({style:{width:'7px',height:'7px',borderRadius:'50%',background:loc.color,flexShrink:'0'}}));
+      tb.appendChild(txt(loc.name));
+      tb.addEventListener('click',(function(lid){return function(){
+        readForm(); // capture current values before switching
+        activeTab=String(lid);
+        buildForm();
+      };})(loc.id));
+      tabBar.appendChild(tb);
+    });
+  } else {
+    // Hide tab bar for single job
+    tabBar.style.display='none';
+    tabBar.style.marginBottom='0';
+  }
+
+  buildForm();
+  return overlay;
+}
+
+// ─── Hours / Pay ──────────────────────────────────────────────────────────────
+function renderHours(){
+  var u=STATE.user,locs=u&&u.locations||[];
+  var pay=STATE.pay;
+  var anchor=pay.payPeriodAnchor||fmtDate(new Date());
+  if(STATE.payPeriodIdx===null) STATE.payPeriodIdx=getCurrPeriodIdx(anchor);
+  var pidx=STATE.payPeriodIdx;
+  var period=getPeriod(anchor,pidx);
+  var periodDays=[];
+  var pstart=new Date(period.start+'T00:00:00');
+  for(var i=0;i<14;i++){var pd=new Date(pstart);pd.setDate(pstart.getDate()+i);periodDays.push(fmtDate(pd));}
+  var holidays=getHolidays(periodDays);
+  var sched=getSchedule();
+  var view=STATE.payView||'all';
+
+  function getRH(locId){
+    var lps=(pay.locPaySettings||[]).find(function(l){return l.locationId===locId;});
+    if(lps&&lps.rateHistory&&lps.rateHistory.length) return lps.rateHistory;
+    return pay.rateHistory||[];
+  }
+  function getLPR(locId){
+    var lps=(pay.locPaySettings||[]).find(function(l){return l.locationId===locId;});
+    return lps&&lps.payRules&&lps.payRules.length?lps.payRules:pay.payRules;
+  }
+  function getLPD(locId){
+    var lps=(pay.locPaySettings||[]).find(function(l){return l.locationId===locId;});
+    return lps&&lps.differentials!==undefined?lps.differentials:pay.differentials;
+  }
+
+  var dayCalcs=periodDays.map(function(key){
+    var s=sched[key],ov=STATE.overrides[key],entries=[];
+    var lid=s&&s.locationId!==null&&s.locationId!==undefined?s.locationId:0;
+
+    function getJobOv(jobId){
+      if(!ov) return null;
+      var k=String(jobId);
+      if(ov.perLoc) return ov.perLoc[k]||null;
+      var primaryId=String(s&&s.locationId!=null?s.locationId:0);
+      return k===primaryId?ov:null;
+    }
+
+    // Process primary scheduled job
+    if((s&&s.work)||holidays.indexOf(key)!==-1||ov){
+      var jobOv=getJobOv(lid);
+      var c=calcPay(key,s,jobOv,getRH(lid),holidays,getLPR(lid),getLPD(lid));
+      var loc=locs.find(function(l){return l.id===lid;})||{id:lid,name:'Job '+(lid+1),color:'#4f9cf9'};
+      entries.push(Object.assign({locId:lid,locName:loc.name,locColor:loc.color},c));
+    }
+
+    // Process conflict (secondary scheduled) jobs
+    (s&&s.secondaryLocations||[]).forEach(function(slid){
+      var sloc=locs.find(function(l){return l.id===slid;})||{id:slid,name:'Job '+(slid+1),color:'#2db87a'};
+      var jobOv2=getJobOv(slid);
+      var sc2=calcPay(key,Object.assign({},s,{locationId:slid,work:true}),jobOv2,getRH(slid),holidays,getLPR(slid),getLPD(slid));
+      entries.push(Object.assign({locId:slid,locName:sloc.name,locColor:sloc.color},sc2));
+    });
+
+    // Process manual-rotation jobs that have overrides logged but aren't in the schedule
+    // (manual jobs generate work:false so they never appear in s.secondaryLocations)
+    if(ov&&ov.perLoc){
+      Object.keys(ov.perLoc).forEach(function(k){
+        var ovLocId=parseInt(k);
+        if(isNaN(ovLocId)) return;
+        // Skip if already handled above
+        var alreadyHandled=entries.some(function(e){return e.locId===ovLocId;});
+        if(alreadyHandled) return;
+        var ovData=ov.perLoc[k];
+        if(!ovData||(!ovData.tag&&!ovData.note&&!ovData.actualHours)) return;
+        var ovLoc=locs.find(function(l){return l.id===ovLocId;})||{id:ovLocId,name:'Job '+(ovLocId+1),color:'#2db87a'};
+        // Treat as a called-in off-day shift — use actual hours from override
+        var fakeDay={work:false,locationId:ovLocId};
+        var mc=calcPay(key,fakeDay,ovData,getRH(ovLocId),holidays,getLPR(ovLocId),getLPD(ovLocId));
+        entries.push(Object.assign({locId:ovLocId,locName:ovLoc.name,locColor:ovLoc.color},mc));
+      });
+    }
+
+    return {key:key,s:s,ov:ov,entries:entries,isConflict:!!(s&&s.conflict)};
+  });
+
+  var locMap={};
+  dayCalcs.forEach(function(day){day.entries.forEach(function(e){var k=String(e.locId);if(!locMap[k])locMap[k]={locId:e.locId,locName:e.locName,locColor:e.locColor,base:0,ot:0,dt:0,holiday:0,diff:0,total:0,hrs:0};locMap[k].base+=e.base||0;locMap[k].ot+=e.ot||0;locMap[k].dt+=e.dt||0;locMap[k].holiday+=e.holiday||0;locMap[k].diff+=e.diff||0;locMap[k].total+=e.total||0;locMap[k].hrs+=e.hrs||0;});});
+  var locTotals=Object.values(locMap);
+  var combined=locTotals.reduce(function(a,l){return a+l.total;},0);
+  var hasPaySetup=locTotals.some(function(l){return l.total>0;});
+  var hasRate=(pay.rateHistory&&pay.rateHistory.length>0)||(pay.locPaySettings||[]).some(function(l){return l.rateHistory&&l.rateHistory.length>0;});
+  // Also check if rate exists even if no work days in this period
+  var hasRate=(pay.rateHistory&&pay.rateHistory.length>0)||
+    (pay.locPaySettings||[]).some(function(l){return l.rateHistory&&l.rateHistory.length>0;});
+
+  var periodLabel=function(){var s=new Date(period.start+'T00:00:00'),e=new Date(period.end+'T00:00:00');return MONTHS[s.getMonth()].slice(0,3)+' '+s.getDate()+' - '+(s.getMonth()!==e.getMonth()?MONTHS[e.getMonth()].slice(0,3)+' ':'')+e.getDate();};
+
+  var pg=div({class:'pg2 fu'});
+  pg.appendChild(div({class:'ph'},[div({class:'pt'},'Pay Period')]));
+
+  if(!hasRate){
+    var wb=div({style:{background:'rgba(240,160,48,0.1)',border:'1px solid rgba(240,160,48,0.25)',borderRadius:'8px',padding:'10px 14px',marginBottom:'1rem',fontSize:'13px',color:'var(--or)'}});
+    wb.textContent='Add a pay rate in Settings to see paycheck estimates.';
+    pg.appendChild(wb);
+  }
+
+  var mnav2=div({class:'card mnav',style:{padding:'10px 1rem',marginBottom:'1rem'}});
+  var pb2=btn({class:'mb'});pb2.appendChild(ic('chl',16));pb2.addEventListener('click',function(){STATE.payPeriodIdx--;render();});
+  mnav2.appendChild(pb2);
+  var pc=div({style:{textAlign:'center'}});
+  pc.appendChild(div({class:'ml'},periodLabel()));
+  pc.appendChild(div({style:{fontSize:'11px',color:'var(--tx3)',marginTop:'2px'}},pidx===getCurrPeriodIdx(anchor)?'Current period':pidx>getCurrPeriodIdx(anchor)?'Future period':'Past period'));
+  mnav2.appendChild(pc);
+  var nb2=btn({class:'mb'});nb2.appendChild(ic('chr',16));nb2.addEventListener('click',function(){STATE.payPeriodIdx++;render();});
+  mnav2.appendChild(nb2);
+  pg.appendChild(mnav2);
+
+  if(locs.length>1){
+    var tabs=div({style:{display:'flex',gap:'0',borderBottom:'1px solid var(--bd)',marginBottom:'1rem',overflowX:'auto'}});
+    function makeTab(id,label,color){
+      var tb=btn({style:{padding:'8px 14px',fontSize:'12px',fontWeight:'500',background:'none',border:'none',borderBottom:view===id?'2px solid '+(color||'var(--ac)'):'2px solid transparent',color:view===id?(color||'var(--ac)'):'var(--tx3)',cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:'5px'}});
+      if(color){var dot=div({style:{width:'7px',height:'7px',borderRadius:'50%',background:color,flexShrink:'0'}});tb.appendChild(dot);}
+      tb.appendChild(txt(label));
+      tb.addEventListener('click',function(){STATE.payView=id;render();});
+      tabs.appendChild(tb);
+    }
+    makeTab('all','All jobs',null);
+    locs.forEach(function(loc){makeTab(String(loc.id),loc.name,loc.color);});
+    pg.appendChild(tabs);
+    if(view==='all'&&locTotals.length>0){
+      var cards=div({style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:'8px',marginBottom:'1rem'}});
+      locs.forEach(function(loc){
+        var lt=locTotals.find(function(l){return l.locId===loc.id;})||{locId:loc.id,locName:loc.name,locColor:loc.color,total:0,hrs:0};
+        var c=div({style:{background:'var(--bg3)',borderRadius:'8px',padding:'12px',borderLeft:'3px solid '+loc.color,cursor:'pointer'}});
+        var nameRow=div({style:{fontSize:'11px',color:'var(--tx3)',marginBottom:'4px',display:'flex',alignItems:'center',gap:'4px'}});
+        nameRow.appendChild(div({style:{width:'6px',height:'6px',borderRadius:'50%',background:loc.color}}));
+        nameRow.appendChild(txt(loc.name));
+        c.appendChild(nameRow);
+        c.appendChild(div({style:{fontSize:'18px',fontWeight:'700',color:lt.total>0?'var(--gr)':'var(--tx2)'}},lt.total>0?fmt$(lt.total):lt.hrs>0?fmtH(lt.hrs):'--'));
+        c.appendChild(div({style:{fontSize:'10px',color:'var(--tx3)',marginTop:'2px'}},lt.hrs>0?fmtH(lt.hrs)+' worked':'No shifts this period'));
+        c.addEventListener('click',(function(lid){return function(){STATE.payView=String(lid);render();};})(loc.id));
+        cards.appendChild(c);
+      });
+      pg.appendChild(cards);
+    }
+  }
+
+  if(hasRate){
+    var viewTot=view==='all'?{base:locTotals.reduce(function(a,l){return a+l.base;},0),ot:locTotals.reduce(function(a,l){return a+l.ot;},0),dt:locTotals.reduce(function(a,l){return a+l.dt;},0),holiday:locTotals.reduce(function(a,l){return a+l.holiday;},0),diff:locTotals.reduce(function(a,l){return a+l.diff;},0),total:combined}:(locTotals.find(function(l){return String(l.locId)===view;})||{base:0,ot:0,dt:0,holiday:0,diff:0,total:0});
+    var est=div({class:'card',style:{marginBottom:'1rem',padding:'1rem'}});
+    var viewName=view==='all'?'Combined estimated gross':(locs.find(function(l){return String(l.id)===view;})||{name:'Estimated gross'}).name;
+    est.appendChild(div({class:'slab'},viewName));
+    est.appendChild(div({style:{fontSize:'32px',fontWeight:'800',marginBottom:'0.75rem',color:'var(--gr)'}},fmt$(viewTot.total)));
+    function bLine(label,amount,color){var row=div({style:{display:'flex',justifyContent:'space-between',fontSize:'13px',padding:'5px 0',borderBottom:'1px solid var(--bd)'}});row.appendChild(el('span',{style:{color:color||'var(--tx2)'}},label));row.appendChild(el('span',{style:{fontWeight:'500'}},fmt$(amount)));est.appendChild(row);}
+    if(viewTot.base>0) bLine('Base pay',viewTot.base,null);
+    if(viewTot.ot>0) bLine('Overtime',viewTot.ot,'var(--or)');
+    if(viewTot.dt>0) bLine('Double time',viewTot.dt,'var(--ac)');
+    if(viewTot.holiday>0) bLine('Holiday pay',viewTot.holiday,'var(--rd)');
+    if(viewTot.diff>0) bLine('Differentials',viewTot.diff,'var(--gr)');
+    est.appendChild(div({style:{fontSize:'11px',color:'var(--tx3)',marginTop:'8px'}},'Pre-tax gross. Based on scheduled + logged overrides.'));
+    pg.appendChild(est);
+  }
+
+  pg.appendChild(div({class:'slab'},'Day breakdown'));
+  var breakdown=div({class:'card',style:{padding:'0.75rem 1rem',marginBottom:'1rem'}});
+  var notableDays=dayCalcs.filter(function(d){return d.entries.length>0||d.ov;});
+  if(notableDays.length===0){breakdown.appendChild(div({style:{padding:'1rem 0',textAlign:'center',color:'var(--tx3)',fontSize:'13px'}},'No work days or overrides in this period yet.'));}
+  notableDays.forEach(function(day){
+    var date2=new Date(day.key+'T00:00:00');
+    var visible=STATE.payView==='all'?day.entries:day.entries.filter(function(e){return String(e.locId)===STATE.payView;});
+    if(visible.length===0&&!day.ov) return;
+    var dayTot=visible.reduce(function(a,e){return a+e.total;},0),dayHrs=visible.reduce(function(a,e){return a+e.hrs;},0);
+    var isHol=holidays.indexOf(day.key)!==-1;
+    var row=div({style:{borderBottom:'1px solid var(--bd)'}});
+    var header2=div({style:{display:'flex',alignItems:'center',gap:'10px',padding:'10px 0',cursor:'pointer'}});
+    header2.appendChild(div({class:'lic',style:{background:day.isConflict?'rgba(232,85,85,0.12)':'var(--bg3)',borderRadius:'8px',width:'36px',height:'36px',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--tx2)',flexShrink:'0'}},[ic('clk',14)]));
+    var info=div({style:{flex:'1',minWidth:'0'}});
+    var titleRow2=div({style:{fontSize:'13px',fontWeight:'500',display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap'}},DAYS[date2.getDay()]+', '+MONTHS[date2.getMonth()].slice(0,3)+' '+date2.getDate());
+    if(isHol) titleRow2.appendChild(div({class:'pill pr',style:{fontSize:'9px'}},'Holiday'));
+    if(day.isConflict) titleRow2.appendChild(div({class:'pill pr',style:{fontSize:'9px'}},'Both jobs'));
+    info.appendChild(titleRow2);
+    var badges=div({style:{display:'flex',gap:'5px',marginTop:'3px',flexWrap:'wrap'}});
+    visible.forEach(function(e){
+      var b=div({style:{display:'inline-flex',alignItems:'center',gap:'3px',fontSize:'10px',padding:'1px 6px',borderRadius:'10px',background:e.locColor+'22',color:e.locColor,fontWeight:'500'}});
+      b.appendChild(div({style:{width:'5px',height:'5px',borderRadius:'50%',background:e.locColor}}));
+      b.appendChild(txt(e.locName+(e.cl&&e.cl.type!=='base'&&e.cl.label?' - '+e.cl.label:'')));
+      badges.appendChild(b);
+    });
+    if(day.ov&&day.ov.tag) badges.appendChild(div({class:'pill pa',style:{fontSize:'9px'}},day.ov.tag));
+    info.appendChild(badges);
+    header2.appendChild(info);
+    var right=div({style:{textAlign:'right',flexShrink:'0'}});
+    right.appendChild(div({style:{fontSize:'14px',fontWeight:'600'}},dayTot>0?fmt$(dayTot):fmtH(dayHrs)));
+    right.appendChild(div({style:{fontSize:'10px',color:'var(--tx3)'}},fmtH(dayHrs)));
+    header2.appendChild(right);
+    var detail=div({style:{display:'none',padding:'0 0 12px 46px'}});
+    header2.addEventListener('click',function(){detail.style.display=detail.style.display==='none'?'block':'none';});
+    visible.forEach(function(e,ei){
+      var eg=div({style:{marginBottom:ei<visible.length-1?'10px':'0'}});
+      if(visible.length>1){var nm=div({style:{fontSize:'11px',fontWeight:'500',color:e.locColor,marginBottom:'4px',display:'flex',alignItems:'center',gap:'4px'}});nm.appendChild(div({style:{width:'6px',height:'6px',borderRadius:'50%',background:e.locColor}}));nm.appendChild(txt(e.locName));eg.appendChild(nm);}
+      e.breakdown.forEach(function(b){var br=div({style:{display:'flex',justifyContent:'space-between',fontSize:'12px',color:'var(--tx2)',padding:'2px 0'}});br.appendChild(txt(b.label));br.appendChild(el('span',{style:{fontWeight:'500'}},b.amount>0?fmt$(b.amount):''));eg.appendChild(br);});
+      detail.appendChild(eg);
+    });
+    if(day.ov&&day.ov.note) detail.appendChild(div({style:{marginTop:'6px',fontSize:'11px',color:'var(--tx3)',fontStyle:'italic'}},day.ov.note));
+    row.appendChild(header2);row.appendChild(detail);breakdown.appendChild(row);
+  });
+  pg.appendChild(breakdown);
+  return pg;
+}
+
+// ─── Group ────────────────────────────────────────────────────────────────────
+function renderGroup(){
+  var u=STATE.user,locs=u&&u.locations||[];
+  var mySched=getSchedule();
+  var friends=STATE.friends;
+  var vm=STATE.groupMonth,vy=STATE.groupYear;
+  var dim=new Date(vy,vm+1,0).getDate(),fdow=new Date(vy,vm,1).getDay();
+  var pg=div({class:'pg2 fu'});
+  pg.appendChild(div({class:'ph'},[div({class:'pt'},'Group')]));
+  var addCard=div({class:'card',style:{marginBottom:'1rem',padding:'1rem'}});
+  addCard.appendChild(div({class:'slab',style:{marginBottom:'8px'}},"Add a friend's handle"));
+  var addRow=div({style:{display:'flex',gap:'8px'}});
+  var hi2=inp({placeholder:'their_handle',value:STATE.groupHandle||''});
+  hi2.addEventListener('blur',function(){STATE.groupHandle=this.value;});
+  hi2.addEventListener('keydown',function(e){if(e.key==='Enter') doAddFriend();});
+  addRow.appendChild(hi2);
+  addRow.appendChild(btn({class:'btn bp bsm',onclick:doAddFriend},'Add'));
+  addCard.appendChild(addRow);
+  addCard.appendChild(div({style:{fontSize:'11px',color:'var(--tx3)',marginTop:'8px'}},"Share your handle with friends to see shared off days."));
+  pg.appendChild(addCard);
+
+  function doAddFriend(){
+    var h=(STATE.groupHandle||'').trim().toLowerCase();
+    if(!h) return;
+    if(friends.find(function(f){return f.handle===h;})) return;
+    var rots=['3on4off','panama','4on3off','5on2off'];
+    var rot=rots[friends.length%4];
+    var anchor=fmtDate(new Date(Date.now()-(friends.length*2+1)*86400000));
+    friends.push({handle:h,name:h,rotation:{presetId:rot,anchorDate:anchor,locationId:0},color:LOC_COLORS[(friends.length)%LOC_COLORS.length]});
+    STATE.friends=friends;sv('ss_friends',friends);STATE.groupHandle='';render();
+  }
+
+  if(friends.length>0){
+    var legend2=div({style:{display:'flex',gap:'8px',flexWrap:'wrap',marginBottom:'1rem'}});
+    function legI2(color,label,r){var item=div({style:{display:'flex',alignItems:'center',gap:'5px',fontSize:'11px',color:'var(--tx2)'}});item.appendChild(div({style:{width:'10px',height:'10px',borderRadius:r||'2px',background:color}}));item.appendChild(txt(label));legend2.appendChild(item);}
+    legI2('rgba(45,184,122,0.5)',null,'Everyone off');legI2('rgba(240,160,48,0.3)',null,'Some off');
+    if(legend2.children.length>0) pg.appendChild(legend2);
+
+    var calCard=div({class:'card',style:{padding:'1rem',marginBottom:'1rem'}});
+    var mnav3=div({class:'mnav'});
+    var pb3=btn({class:'mb'});pb3.appendChild(ic('chl',16));pb3.addEventListener('click',function(){if(STATE.groupMonth===0){STATE.groupMonth=11;STATE.groupYear--;}else STATE.groupMonth--;render();});
+    mnav3.appendChild(pb3);
+    mnav3.appendChild(div({class:'ml'},MONTHS[vm]+' '+vy));
+    var nb3=btn({class:'mb'});nb3.appendChild(ic('chr',16));nb3.addEventListener('click',function(){if(STATE.groupMonth===11){STATE.groupMonth=0;STATE.groupYear++;}else STATE.groupMonth++;render();});
+    mnav3.appendChild(nb3);
+    calCard.appendChild(mnav3);
+
+    var fScheds=friends.map(function(f){return buildSchedule([f.rotation]||[],[]);});
+    var grid2=div({class:'cgr'});
+    DAYS.forEach(function(d){grid2.appendChild(div({class:'cdow'},d));});
+    for(var i=0;i<fdow;i++) grid2.appendChild(div({class:'cd empty'}));
+    for(var d2=1;d2<=dim;d2++){
+      var key2=vy+'-'+pad(vm+1)+'-'+pad(d2);
+      var myWork=!!(mySched[key2]&&mySched[key2].work);
+      var fWork=fScheds.map(function(fs){return !!(fs[key2]&&fs[key2].work);});
+      var allOff=!myWork&&fWork.every(function(w){return !w;});
+      var someOff=!myWork&&fWork.some(function(w){return !w;});
+      var bg2=allOff?'rgba(45,184,122,0.25)':someOff?'rgba(240,160,48,0.18)':'transparent';
+      var cdiv2=div({class:'cd'+(key2===todayKey()?' today':''),style:{background:bg2}});
+      cdiv2.appendChild(el('span',{style:{lineHeight:'1'}},String(d2)));
+      grid2.appendChild(cdiv2);
+    }
+    calCard.appendChild(grid2);
+    pg.appendChild(calCard);
+
+    pg.appendChild(div({class:'slab'},'Your group'));
+    var gCard=div({class:'card',style:{padding:'0.75rem 1rem'}});
+    var myRow=div({class:'li'});
+    var myIcon=div({class:'lic',style:{background:'rgba(79,156,249,0.15)'}});myIcon.appendChild(ic('usr',16));
+    myRow.appendChild(myIcon);
+    var myInfo=div({style:{flex:'1'}});myInfo.appendChild(div({style:{fontSize:'14px',fontWeight:'500'}},'You ('+(u&&u.handle||'')+')'));myInfo.appendChild(div({style:{fontSize:'12px',color:'var(--tx3)'}},'Your schedule'));
+    myRow.appendChild(myInfo);myRow.appendChild(div({class:'pill pb'},'You'));
+    gCard.appendChild(myRow);
+    friends.forEach(function(f){
+      var fr=div({class:'li'});
+      var fi=div({class:'lic',style:{background:f.color+'22'}});fi.appendChild(div({style:{width:'8px',height:'8px',borderRadius:'50%',background:f.color}}));
+      fr.appendChild(fi);
+      var ff=div({style:{flex:'1'}});ff.appendChild(div({style:{fontSize:'14px',fontWeight:'500'}},f.handle));ff.appendChild(div({style:{fontSize:'12px',color:'var(--tx3)'}},f.handle));
+      fr.appendChild(ff);
+      var rb2=btn({class:'btn',style:{background:'none',border:'none',color:'var(--tx3)',padding:'4px'}});
+      rb2.appendChild(ic('x',14));
+      rb2.addEventListener('click',(function(fh){return function(){STATE.friends=friends.filter(function(x){return x.handle!==fh;});sv('ss_friends',STATE.friends);render();};})(f.handle));
+      fr.appendChild(rb2);gCard.appendChild(fr);
+    });
+    pg.appendChild(gCard);
+  } else {
+    var empty=div({style:{textAlign:'center',padding:'3rem 1rem',color:'var(--tx3)',fontSize:'14px',lineHeight:'1.6'}});
+    empty.appendChild(div({style:{marginBottom:'12px',color:'var(--tx3)'}},[ic('usr',40)]));
+    empty.appendChild(div({style:{fontWeight:'500',marginBottom:'6px'}},'No friends added yet'));
+    empty.appendChild(txt("Add a friend's handle above to overlay schedules."));
+    pg.appendChild(empty);
+  }
+  return pg;
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+function renderSettings(){
+  var u=STATE.user,locs=u&&u.locations||[];
+  var pay=STATE.pay;
+  var st=STATE.settingsTab||'share';
+  var pg=div({class:'pg2 fu'});
+  pg.appendChild(div({class:'ph'},[div({class:'pt'},'Settings')]));
+
+  var tabs=div({style:{display:'flex',gap:'0',borderBottom:'1px solid var(--bd)',marginBottom:'1.25rem'}});
+  [['share','Share'],['pay','Pay'],['account','Account']].forEach(function(t){
+    var tb=btn({style:{flex:'1',padding:'9px 0',fontSize:'12px',fontWeight:'500',background:'none',border:'none',borderBottom:st===t[0]?'2px solid var(--ac)':'2px solid transparent',color:st===t[0]?'var(--ac)':'var(--tx3)',cursor:'pointer',fontFamily:'inherit',letterSpacing:'.03em'}},t[1]);
+    tb.addEventListener('click',function(){STATE.settingsTab=t[0];render();});
+    tabs.appendChild(tb);
+  });
+  pg.appendChild(tabs);
+
+  if(st==='share'){
+    var shareUrl=window.location.origin+window.location.pathname+'?view='+(u&&u.handle||'');
+    pg.appendChild(div({class:'slab'},'Your shareable link'));
+    var lCard=div({class:'card',style:{marginBottom:'1rem'}});
+    lCard.appendChild(div({class:'sbox',style:{marginBottom:'10px'}},shareUrl));
+    lCard.appendChild(div({style:{fontSize:'12px',color:'var(--tx3)',marginBottom:'12px'}},'Anyone with this link can view your schedule - read only, no account needed.'));
+    var copyB=btn({class:'btn bp',style:{width:'100%'}});
+    copyB.appendChild(ic('cpy',15));copyB.appendChild(txt(' Copy link'));
+    copyB.addEventListener('click',function(){navigator.clipboard.writeText(shareUrl).catch(function(){});copyB.textContent='Copied!';setTimeout(function(){copyB.textContent='';copyB.appendChild(ic('cpy',15));copyB.appendChild(txt(' Copy link'));},2000);});
+    lCard.appendChild(copyB);pg.appendChild(lCard);
+
+    pg.appendChild(div({class:'slab'},'Locations'));
+    pg.appendChild(div({style:{fontSize:'12px',color:'var(--tx3)',marginBottom:'0.75rem',lineHeight:'1.5'}},'Add jobs, hospitals, or sites. Tap color to cycle. Tap name to rename.'));
+    locs.forEach(function(loc){renderLocCard(pg,loc,locs,pay,u);});
+    if(locs.length<6){
+      var addLocRow=div({style:{display:'flex',gap:'8px',marginBottom:'1rem'}});
+      var locInp=inp({placeholder:'New location (e.g. Second job)',value:''});
+      locInp.addEventListener('keydown',function(e){if(e.key==='Enter'&&this.value.trim()){addLoc(this.value.trim());this.value='';}});
+      addLocRow.appendChild(locInp);
+      addLocRow.appendChild(btn({class:'btn bp bsm',onclick:function(){var v=locInp.value.trim();if(v){addLoc(v);locInp.value='';}}  },[ic('pls',13),txt('Add')]));
+      pg.appendChild(addLocRow);
+    }
+  }
+
+  else if(st==='pay'){
+    renderPaySettings(pg,locs,pay);
+  }
+
+  else if(st==='account'){
+    pg.appendChild(div({class:'slab'},'Account'));
+    var ac=div({class:'card',style:{padding:'0.75rem 1rem',marginBottom:'1rem'}});
+    function aRow(label,val){var r=div({style:{padding:'10px 0',borderBottom:'1px solid var(--bd)'}});r.appendChild(div({style:{fontSize:'14px',fontWeight:'500'}},label));r.appendChild(div({style:{fontSize:'12px',color:'var(--tx3)'}},String(val||'')));ac.appendChild(r);}
+    aRow('Handle','@'+(u&&u.handle||''));aRow('Name',u&&u.name||'');
+    pg.appendChild(ac);
+    pg.appendChild(div({class:'slab'},'Danger zone'));
+    var dz=div({class:'card',style:{padding:'1rem'}});
+    dz.appendChild(div({style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1rem'}},'Erases all data, overrides, and settings.'));
+    dz.appendChild(btn({class:'btn bd2c',style:{width:'100%'},onclick:function(){if(window.confirm('Reset all ShiftStack data?')){localStorage.clear();window.location.reload();}}},'Reset all app data'));
+    pg.appendChild(dz);
+  }
+  return pg;
+}
+
+function addLoc(name){
+  var u=STATE.user,locs=u&&u.locations||[];
+  var nextId=locs.length?Math.max.apply(null,locs.map(function(l){return l.id;}))+1:0;
+  var newLocs=locs.concat([{id:nextId,name:name,color:LOC_COLORS[nextId%LOC_COLORS.length]}]);
+  var existRots=u.rotations||(u.rotation?[Object.assign({},u.rotation,{locationId:0})]: []);
+  var syncRots=newLocs.map(function(loc){var ex=existRots.find(function(r){return r.locationId===loc.id;});return ex||{presetId:'manual',anchorDate:fmtDate(new Date()),locationId:loc.id,customPattern:''};});
+  var upd=Object.assign({},u,{locations:newLocs,rotations:syncRots});
+  STATE.user=upd;sv('ss_user',upd);render();
+}
+
+function renderLocCard(pg,loc,locs,pay,u){
+  var card=div({class:'card',style:{marginBottom:'8px',padding:'0.875rem 1rem'}});
+  var topRow=div({style:{display:'flex',alignItems:'center',gap:'10px'}});
+  var dot=div({style:{width:'28px',height:'28px',borderRadius:'50%',background:loc.color,flexShrink:'0',cursor:'pointer',border:'2px solid rgba(255,255,255,0.15)'}});
+  dot.addEventListener('click',function(){var idx=LOC_COLORS.indexOf(loc.color);updLocColor(loc.id,LOC_COLORS[(idx+1)%LOC_COLORS.length]);});
+  topRow.appendChild(dot);
+  var nameSpan=el('span',{style:{flex:'1',fontSize:'13px',fontWeight:'500',cursor:'text'}},loc.name+' ');
+  nameSpan.appendChild(el('span',{style:{fontSize:'11px',color:'var(--tx3)',fontWeight:'400'}},'tap to rename'));
+  nameSpan.addEventListener('click',function(){
+    var inp2=inp({value:loc.name,style:{fontSize:'13px',fontWeight:'500',padding:'4px 8px'}});
+    inp2.addEventListener('blur',function(){updLocName(loc.id,this.value);});
+    inp2.addEventListener('keydown',function(e){if(e.key==='Enter')this.blur();});
+    topRow.replaceChild(inp2,nameSpan);inp2.focus();
+  });
+  topRow.appendChild(nameSpan);
+  if(locs.length>1){
+    var delB=btn({class:'btn',style:{background:'none',border:'none',color:'var(--rd)',padding:'4px',opacity:'.7'}});
+    delB.appendChild(ic('tsh',14));
+    delB.addEventListener('click',(function(lid){return function(){if(window.confirm('Remove this location?')){var newLocs=locs.filter(function(l){return l.id!==lid;});var upd=Object.assign({},STATE.user,{locations:newLocs});STATE.user=upd;sv('ss_user',upd);render();}};})(loc.id));
+    topRow.appendChild(delB);
+  }
+  card.appendChild(topRow);
+
+  var colors=div({style:{display:'flex',gap:'6px',marginTop:'0.75rem',flexWrap:'wrap'}});
+  LOC_COLORS.forEach(function(c){
+    var sw=div({style:{width:'20px',height:'20px',borderRadius:'50%',background:c,cursor:'pointer',border:loc.color===c?'2px solid white':'2px solid transparent',transform:loc.color===c?'scale(1.2)':'scale(1)',transition:'all .12s'}});
+    sw.addEventListener('click',(function(color){return function(){updLocColor(loc.id,color);};})(c));
+    colors.appendChild(sw);
+  });
+  card.appendChild(colors);
+
+  var rot=(u.rotations||[]).find(function(r){return r.locationId===loc.id;})||{presetId:'manual',anchorDate:fmtDate(new Date()),locationId:loc.id,customPattern:''};
+  var rotSec=div({style:{marginTop:'0.875rem',paddingTop:'0.875rem',borderTop:'1px solid var(--bd)'}});
+  rotSec.appendChild(div({style:{fontSize:'11px',fontWeight:'500',color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:'8px'}},'Schedule for this job'));
+  var rotGrid=div({style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'6px'}});
+  var pSel=sel({style:{fontSize:'12px',padding:'5px 8px'}},ROTATION_PRESETS.map(function(p){return {value:p.id,label:p.label};}),rot.presetId||'manual');
+  pSel.addEventListener('change',(function(lid){return function(){updRotation(lid,{presetId:this.value});};})(loc.id));
+  var pd=div();pd.appendChild(el('label',{style:{fontSize:'10px'}},'Pattern'));pd.appendChild(pSel);rotGrid.appendChild(pd);
+  if(rot.presetId!=='manual'){
+    var ad=div();ad.appendChild(el('label',{style:{fontSize:'10px'}},'Cycle start'));
+    var ai=inp({type:'date',value:rot.anchorDate||fmtDate(new Date()),style:{fontSize:'12px',padding:'5px 8px'}});
+    ai.addEventListener('change',(function(lid){return function(){updRotation(lid,{anchorDate:this.value});};})(loc.id));
+    ad.appendChild(ai);rotGrid.appendChild(ad);
+  }
+  rotSec.appendChild(rotGrid);
+  if(rot.presetId==='custom'){
+    var cl=div();cl.appendChild(el('label',{style:{fontSize:'10px'}},'Pattern (e.g. 4,3)'));
+    var ci2=inp({value:rot.customPattern||'',placeholder:'4,3',style:{fontSize:'12px',padding:'5px 8px'}});
+    ci2.addEventListener('blur',(function(lid){return function(){updRotation(lid,{customPattern:this.value});};})(loc.id));
+    ci2.addEventListener('keydown',function(e){if(e.key==='Enter')this.blur();});
+    cl.appendChild(ci2);rotSec.appendChild(cl);
+  }
+  if(rot.presetId==='manual') rotSec.appendChild(div({style:{fontSize:'11px',color:'var(--tx3)',lineHeight:'1.5'}},'Tap individual days on the calendar to mark them as this job.'));
+  card.appendChild(rotSec);
+  pg.appendChild(card);
+}
+
+function updLocColor(locId,color){var u=STATE.user,newLocs=(u.locations||[]).map(function(l){return l.id===locId?Object.assign({},l,{color:color}):l;});var upd=Object.assign({},u,{locations:newLocs});STATE.user=upd;sv('ss_user',upd);render();}
+function updLocName(locId,name){var u=STATE.user,newLocs=(u.locations||[]).map(function(l){return l.id===locId?Object.assign({},l,{name:name}):l;});var upd=Object.assign({},u,{locations:newLocs});STATE.user=upd;sv('ss_user',upd);render();}
+function updRotation(locId,changes){var u=STATE.user,rots=(u.rotations||[]).map(function(r){return r.locationId===locId?Object.assign({},r,changes):r;});if(!rots.find(function(r){return r.locationId===locId;}))rots=rots.concat([Object.assign({presetId:'manual',anchorDate:fmtDate(new Date()),locationId:locId,customPattern:''},changes)]);var upd=Object.assign({},u,{rotations:rots});STATE.user=upd;sv('ss_user',upd);render();}
+
+function renderPaySettings(pg,locs,pay){
+
+  function getLPS(locId){return (pay.locPaySettings||[]).find(function(l){return l.locationId===locId;})||{locationId:locId,rateHistory:[]};}
+  function saveLPS(locId,changes){
+    var ex=getLPS(locId);
+    var merged=Object.assign({},ex,changes);
+    pay.locPaySettings=((pay.locPaySettings||[]).filter(function(l){return l.locationId!==locId;})).concat([merged]);
+    STATE.pay=pay;sv('ss_pay',pay);
+  }
+
+  function buildRateSection(rh,onAdd,onDel){
+    var sec=div({});
+    var rg=div({style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'8px'}});
+    var rInp=inp({type:'number',placeholder:'38.50',min:'0',step:'0.01'});
+    var rDate=inp({type:'date',value:fmtDate(new Date())});
+    var rd1=div();rd1.appendChild(el('label',null,'Hourly rate ($)'));rd1.appendChild(rInp);rg.appendChild(rd1);
+    var rd2=div();rd2.appendChild(el('label',null,'Effective date'));rd2.appendChild(rDate);rg.appendChild(rd2);
+    sec.appendChild(rg);
+    sec.appendChild(btn({class:'btn bp bsm',style:{width:'100%'},onclick:function(){
+      var r=parseFloat(rInp.value);if(isNaN(r)||r<=0)return;
+      var dt=rDate.value||fmtDate(new Date());
+      var updated=(rh||[]).filter(function(x){return x.effectiveDate!==dt;}).concat([{rate:r,effectiveDate:dt}]).sort(function(a,b){return b.effectiveDate<a.effectiveDate?1:-1;});
+      onAdd(updated);rInp.value='';render();
+    }},[ic('pls',13),txt('Add rate')]));
+    if(rh&&rh.length>0){
+      var list=div({style:{marginTop:'0.75rem'}});
+      rh.slice().sort(function(a,b){return b.effectiveDate<a.effectiveDate?1:-1;}).forEach(function(r,i){
+        var row=div({style:{display:'flex',alignItems:'center',gap:'8px',padding:'5px 0',borderBottom:'1px solid var(--bd)',fontSize:'12px'}});
+        row.appendChild(el('span',{style:{flex:'1',fontWeight:'500'}},'$'+r.rate.toFixed(2)+'/hr'));
+        row.appendChild(el('span',{style:{color:'var(--tx3)',fontSize:'11px'}},'eff. '+r.effectiveDate+(i===0?' (current)':'')));
+        var db=btn({class:'btn',style:{background:'none',border:'none',color:'var(--tx3)',padding:'2px'}});db.appendChild(ic('tsh',12));
+        db.addEventListener('click',(function(ed){return function(){onDel(ed);render();};})(r.effectiveDate));
+        row.appendChild(db);list.appendChild(row);
+      });
+      sec.appendChild(list);
+    }
+    return sec;
+  }
+
+  function makeDiffAmtInp(label2,key2,val2,diffsArr2,idx2,onChange2){
+    var dd=div();
+    dd.appendChild(el('label',{style:{fontSize:'10px'}},label2));
+    var di=inp({type:'number',value:val2||'',placeholder:key2==='amount'?'1.35':key2==='amountOT'?'2.03':'2.70',step:'0.01',min:'0',style:{padding:'6px 8px',fontSize:'12px'}});
+    di.addEventListener('blur',(function(k,ii,da,oc){return function(){da[ii][k]=parseFloat(this.value)||0;oc(da);};})(key2,idx2,diffsArr2,onChange2));
+    dd.appendChild(di);
+    return dd;
+  }
+
+  function buildDiffsSection(diffsArr,onChange){
+    var wrap=div({});
+    wrap.appendChild(div({style:{fontSize:'12px',color:'var(--tx3)',marginBottom:'0.75rem',lineHeight:'1.5'}},'Flat per-hour additions on top of base pay.'));
+    diffsArr.forEach(function(d,i){
+      var dc=div({class:'card',style:{marginBottom:'8px',padding:'0.875rem 1rem'}});
+      var dh=div({style:{display:'flex',alignItems:'center',gap:'10px',marginBottom:d.enabled?'0.75rem':'0'}});
+      var dname=inp({value:d.label,style:{flex:'1',fontWeight:'500',fontSize:'13px',padding:'4px 8px'}});
+      dname.addEventListener('blur',(function(ii,da,oc){return function(){da[ii].label=this.value;oc(da);};})(i,diffsArr,onChange));
+      dh.appendChild(dname);
+      var tog=div({class:'tog'+(d.enabled?' on':'')});tog.appendChild(div({class:'tok'}));
+      tog.addEventListener('click',(function(ii,da,oc){return function(){da[ii].enabled=!da[ii].enabled;oc(da);render();};})(i,diffsArr,onChange));
+      dh.appendChild(tog);
+      var delD=btn({class:'btn',style:{background:'none',border:'none',color:'var(--tx3)',padding:'4px'}});delD.appendChild(ic('tsh',13));
+      delD.addEventListener('click',(function(ii,da,oc){return function(){da.splice(ii,1);oc(da);render();};})(i,diffsArr,onChange));
+      dh.appendChild(delD);dc.appendChild(dh);
+      if(d.enabled){
+        var dg=div({style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'6px',marginBottom:'6px'}});
+        dg.appendChild(makeDiffAmtInp('Base $/hr','amount',d.amount,diffsArr,i,onChange));
+        dg.appendChild(makeDiffAmtInp('OT $/hr','amountOT',d.amountOT,diffsArr,i,onChange));
+        dg.appendChild(makeDiffAmtInp('DT $/hr','amountDT',d.amountDT,diffsArr,i,onChange));
+        dc.appendChild(dg);
+        var applyRow=div({style:{display:'flex',gap:'5px',flexWrap:'wrap'}});
+        [['base','Regular'],['ot','OT days'],['dt','DT days'],['weekend_on','Weekends on']].forEach(function(v){
+          var isSel=(d.applyTo||[]).indexOf(v[0])!==-1;
+          var ab=btn({class:'tag bsm'+(isSel?' sel':''),style:{fontSize:'10px',padding:'3px 8px'}},v[1]);
+          ab.addEventListener('click',(function(ii,val3,da,oc,b){return function(){var cur=da[ii].applyTo||[];da[ii].applyTo=cur.indexOf(val3)!==-1?cur.filter(function(x){return x!==val3;}):cur.concat([val3]);oc(da);b.className='tag bsm'+(da[ii].applyTo.indexOf(val3)!==-1?' sel':'');};})(i,v[0],diffsArr,onChange,ab));
+          applyRow.appendChild(ab);
+        });
+        dc.appendChild(applyRow);
+      }
+      wrap.appendChild(dc);
+    });
+    wrap.appendChild(btn({class:'btn bg bsm',style:{width:'100%'},onclick:function(){diffsArr.push({id:'d'+Date.now(),label:'New differential',applyTo:['base'],amount:0,amountOT:0,amountDT:0,enabled:true});onChange(diffsArr);render();}},[ic('pls',13),txt('Add differential')]));
+    return wrap;
+  }
+
+  function buildMultipliersSection(rules,onChange){
+    var wrap2=div({});
+    // Preset picker
+    var presetNote=div({style:{fontSize:'12px',color:'var(--tx3)',marginBottom:'0.5rem'}});
+    presetNote.textContent='Quick-start with a preset, then customize below:';
+    wrap2.appendChild(presetNote);
+    var presetRow=div({style:{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'0.75rem'}});
+    PAY_RULE_PRESETS.forEach(function(p){
+      var pb=btn({class:'tag bsm',style:{fontSize:'11px'}},p.label);
+      pb.setAttribute('title',p.desc);
+      pb.addEventListener('click',function(){
+        var newRules=p.rules.map(function(r){return Object.assign({},r);});
+        onChange(newRules);render();
+      });
+      presetRow.appendChild(pb);
+    });
+    wrap2.appendChild(presetRow);
+    var card2=div({class:'card',style:{padding:'0.75rem 1rem'}});
+    rules.forEach(function(rule,i){
+      var rrow=div({style:{padding:'8px 0',borderBottom:'1px solid var(--bd)'}});
+      var rh2=div({style:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'4px'}});
+      rh2.appendChild(el('span',{style:{flex:'1',fontSize:'13px',fontWeight:'500'}},rule.label));
+      var minp=inp({type:'number',value:rule.multiplier,step:'0.25',min:'0.5',max:'4',style:{width:'64px',padding:'4px 8px',fontSize:'13px',textAlign:'center'}});
+      minp.addEventListener('blur',(function(ii,r2,oc){return function(){r2[ii].multiplier=parseFloat(this.value)||1.0;oc(r2);};})(i,rules,onChange));
+      rh2.appendChild(minp);rh2.appendChild(el('span',{style:{fontSize:'12px',color:'var(--tx3)'}},'x'));
+      rrow.appendChild(rh2);
+      rrow.appendChild(div({style:{fontSize:'11px',color:'var(--tx3)'}},rule.condition));
+      card2.appendChild(rrow);
+    });
+    wrap2.appendChild(card2);
+    return wrap2;
+  }
+
+  function buildAnchorSection(anchor,onChange){
+    var c=div({class:'card',style:{padding:'1rem'}});
+    c.appendChild(el('label',null,'First day of your current bi-weekly pay period'));
+    var ppi=inp({type:'date',value:anchor||fmtDate(new Date()),style:{marginBottom:'8px'}});
+    ppi.addEventListener('change',function(){onChange(this.value);});
+    c.appendChild(ppi);
+    c.appendChild(div({style:{fontSize:'11px',color:'var(--tx3)'}},'Set once - all periods calculate from here.'));
+    return c;
+  }
+
+  function buildJobSection(locId,isGlobal){
+    var lps=getLPS(locId);
+    var rh=isGlobal?(pay.rateHistory||[]):(lps.rateHistory||[]);
+    // Secondary jobs default to standard OT-only rules, not federal OT/DT structure
+    var defaultRules=isGlobal?DEFAULT_PAY_RULES:STANDARD_PAY_RULES;
+    var rules=(lps.payRules&&lps.payRules.length)?lps.payRules:defaultRules.map(function(r){return Object.assign({},r);});
+    // Secondary jobs default to no differentials
+    var defaultDiffs=isGlobal?DEFAULT_DIFFS:[];
+    var diffs=lps.differentials!==undefined?lps.differentials:defaultDiffs.map(function(d){return Object.assign({},d,{applyTo:(d.applyTo||[]).slice()});});
+    var anchor=(lps.payPeriodAnchor)||(isGlobal?pay.payPeriodAnchor:null)||pay.payPeriodAnchor||fmtDate(new Date());
+    var curRate=getEffRate(rh,fmtDate(new Date()));
+    var wrap=div({});
+
+    if(curRate>0){
+      var banner=div({style:{background:'rgba(45,184,122,0.1)',border:'1px solid rgba(45,184,122,0.2)',borderRadius:'8px',padding:'10px 14px',marginBottom:'1rem'}});
+      banner.appendChild(div({style:{fontSize:'13px',fontWeight:'500',color:'var(--gr)'}},'Current rate: $'+curRate.toFixed(2)+'/hr'));
+      wrap.appendChild(banner);
+    }
+
+    wrap.appendChild(div({class:'slab'},'Hourly rate history'));
+    var rCard=div({class:'card',style:{marginBottom:'1rem',padding:'1rem'}});
+    rCard.appendChild(buildRateSection(rh,
+      function(updated){if(isGlobal){pay.rateHistory=updated;STATE.pay=pay;sv('ss_pay',pay);}else saveLPS(locId,{rateHistory:updated});},
+      function(ed){var upd=rh.filter(function(x){return x.effectiveDate!==ed;});if(isGlobal){pay.rateHistory=upd;STATE.pay=pay;sv('ss_pay',pay);}else saveLPS(locId,{rateHistory:upd});}
+    ));
+    wrap.appendChild(rCard);
+
+    wrap.appendChild(div({class:'slab'},'Pay differentials'));
+    wrap.appendChild(buildDiffsSection(diffs,function(updated){
+      if(isGlobal){pay.differentials=updated;STATE.pay=pay;sv('ss_pay',pay);}
+      else saveLPS(locId,{differentials:updated});
+    }));
+
+    wrap.appendChild(div({class:'slab',style:{marginTop:'1rem'}},'Pay multipliers'));
+    wrap.appendChild(buildMultipliersSection(rules,function(updated){
+      if(isGlobal){pay.payRules=updated;STATE.pay=pay;sv('ss_pay',pay);}
+      else saveLPS(locId,{payRules:updated});
+    }));
+
+    wrap.appendChild(div({class:'slab',style:{marginTop:'1rem'}},'Pay period anchor'));
+    wrap.appendChild(buildAnchorSection(anchor,function(val){
+      if(isGlobal){pay.payPeriodAnchor=val;STATE.pay=pay;sv('ss_pay',pay);}
+      else saveLPS(locId,{payPeriodAnchor:val});
+    }));
+
+    return wrap;
+  }
+
+  var saveBtn=btn({class:'btn bp',style:{width:'100%',marginTop:'1rem'},onclick:function(){STATE.pay=pay;sv('ss_pay',pay);this.textContent='Saved!';var self=this;setTimeout(function(){self.textContent='';self.appendChild(ic('chk',15));self.appendChild(txt(' Save pay settings'));},2000);}},[ic('chk',15),txt(' Save pay settings')]);
+
+  if(locs.length<=1){
+    pg.appendChild(buildJobSection(locs.length?locs[0].id:0,true));
+    pg.appendChild(saveBtn);
+    return;
+  }
+
+  if(!STATE.payJobTab) STATE.payJobTab=String(locs[0].id);
+  var tabRow=div({style:{display:'flex',borderBottom:'1px solid var(--bd)',marginBottom:'1.25rem',overflowX:'auto'}});
+  locs.forEach(function(loc){
+    var isOn=STATE.payJobTab===String(loc.id);
+    var tb=btn({style:{padding:'9px 14px',fontSize:'12px',fontWeight:'500',background:'none',border:'none',borderBottom:isOn?'2px solid '+loc.color:'2px solid transparent',color:isOn?loc.color:'var(--tx3)',cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:'5px'}});
+    tb.appendChild(div({style:{width:'7px',height:'7px',borderRadius:'50%',background:loc.color,flexShrink:'0'}}));
+    tb.appendChild(txt(loc.name));
+    tb.addEventListener('click',(function(lid){return function(){STATE.payJobTab=String(lid);render();};})(loc.id));
+    tabRow.appendChild(tb);
+  });
+  pg.appendChild(tabRow);
+
+  var activeLoc=locs.find(function(l){return String(l.id)===STATE.payJobTab;})||locs[0];
+  var isFirst=activeLoc.id===locs[0].id;
+  pg.appendChild(buildJobSection(activeLoc.id,isFirst));
+  pg.appendChild(saveBtn);
+}
+
+// ─── Public View ──────────────────────────────────────────────────────────────
+function renderPublic(handle){
+  var userData=ld('ss_user',null);
+  var sched=ld('ss_schedule',{});
+  if(!userData||userData.handle!==handle){
+    var wrap=div({style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:'2rem',textAlign:'center'}});
+    var inner=div();
+    inner.appendChild(div({style:{fontSize:'32px',fontWeight:'800',marginBottom:'8px'}},['Shift',el('span',{style:{color:'var(--ac)'}},'Stack')]));
+    inner.appendChild(div({style:{color:'var(--tx2)',marginBottom:'1.5rem'}},'Schedule not found for @'+handle));
+    inner.appendChild(btn({class:'btn bg',onclick:function(){window.location.href=window.location.pathname;}},'Open app'));
+    wrap.appendChild(inner);return wrap;
+  }
+  var month=new Date().getMonth(),year=new Date().getFullYear();
+  var dim=new Date(year,month+1,0).getDate(),fdow=new Date(year,month,1).getDay();
+  var locs=userData.locations||[];
+  var pg=div({style:{maxWidth:'480px',margin:'0 auto',paddingBottom:'2rem'}});
+  var header2=div({style:{background:'#0d1a2e',padding:'2rem 1rem 1.5rem',textAlign:'center',borderBottom:'1px solid var(--bd)'}});
+  header2.appendChild(div({style:{fontSize:'12px',color:'var(--tx3)',marginBottom:'4px',letterSpacing:'.04em',textTransform:'uppercase'}},'ShiftStack'));
+  header2.appendChild(div({style:{fontSize:'26px',fontWeight:'800'}},userData.name));
+  header2.appendChild(div({style:{fontSize:'13px',color:'var(--tx3)',marginTop:'4px'}},'@'+handle));
+  pg.appendChild(header2);
+  var content=div({style:{padding:'1rem'}});
+  var card=div({class:'card',style:{padding:'1rem'}});
+  var grid3=div({class:'cgr'});
+  DAYS.forEach(function(d){grid3.appendChild(div({class:'cdow'},d));});
+  for(var i=0;i<fdow;i++) grid3.appendChild(div({class:'cd empty'}));
+  var today=todayKey();
+  for(var d=1;d<=dim;d++){
+    var key=year+'-'+pad(month+1)+'-'+pad(d);
+    var s=sched[key];var locId=s&&s.locationId!==null&&s.locationId!==undefined?s.locationId:null;
+    var loc=locId!==null?locs.find(function(l){return l.id===locId;}):null;
+    var bg=s&&s.work&&loc?loc.color+'33':'transparent';
+    var cdiv=div({class:'cd'+(key===today?' today':'')+(s&&s.work?' work':''),style:{background:bg,cursor:'default'}});
+    cdiv.appendChild(el('span',{style:{lineHeight:'1'}},String(d)));
+    if(s&&s.work&&loc) cdiv.appendChild(div({style:{width:'5px',height:'5px',borderRadius:'50%',background:loc.color,marginTop:'1px'}}));
+    grid3.appendChild(cdiv);
+  }
+  card.appendChild(grid3);
+  content.appendChild(card);
+  content.appendChild(div({style:{fontSize:'11px',color:'var(--tx3)',textAlign:'center',marginTop:'1rem'}},['Powered by ',el('span',{style:{color:'var(--ac)'}},'ShiftStack')]));
+  pg.appendChild(content);return pg;
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
