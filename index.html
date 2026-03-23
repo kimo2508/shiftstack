@@ -495,6 +495,46 @@ function renderOnboard(){
   wrap.appendChild(card);
   card.appendChild(div({class:'logo'},['Shift',el('span',null,'Stack')]));
   card.appendChild(el('p',{style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1.25rem'}},'Your shift schedule, organized.'));
+
+  // Sign-in screen (step -1)
+  if(ob.step===-1){
+    var content0=div({class:'fu'});
+    card.appendChild(content0);
+    content0.appendChild(el('p',{style:{fontSize:'14px',color:'var(--tx2)',lineHeight:'1.7',marginBottom:'1.25rem'}},'Welcome back! Enter your handle to sign in.'));
+    content0.appendChild(el('label',null,'Your handle'));
+    var siWrap=div({style:{position:'relative',marginBottom:'8px'}});
+    siWrap.appendChild(div({style:{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)',fontSize:'13px',color:'var(--tx3)'}},'shiftstack.app/'));
+    var siInp=inp({placeholder:'tim_t',value:ob.signinHandle||''});
+    siInp.style.paddingLeft='115px';
+    siInp.addEventListener('input',function(){STATE.ob.signinHandle=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'');this.value=STATE.ob.signinHandle;});
+    siWrap.appendChild(siInp);
+    content0.appendChild(siWrap);
+    var siErr=div({style:{fontSize:'12px',color:'var(--rd)',marginBottom:'8px',minHeight:'18px'}});
+    content0.appendChild(siErr);
+    content0.appendChild(div({style:{height:'0.5rem'}}));
+    var siBtn=btn({class:'btn bp',style:{width:'100%'}},'Sign in');
+    siBtn.addEventListener('click',function(){
+      var h=(STATE.ob.signinHandle||'').trim();
+      if(!h){siErr.textContent='Enter your handle';return;}
+      siBtn.disabled=true;siBtn.textContent='Signing in...';siErr.textContent='';
+      dbGetUser(h).then(function(u){
+        if(!u){siErr.textContent='Handle not found. Check the spelling or sign up.';siBtn.disabled=false;siBtn.textContent='Sign in';return;}
+        lcSet('ss_handle',u.handle);
+        STATE.user=u;
+        return Promise.all([dbGetOverrides(u.id),dbGetPay(u.id)]).then(function(results){
+          STATE.overrides=results[0]||{};
+          STATE.pay=results[1]||Object.assign({},DEFAULT_PAY);
+          STATE.tab='calendar';render();
+        });
+      }).catch(function(){siErr.textContent='Error connecting. Try again.';siBtn.disabled=false;siBtn.textContent='Sign in';});
+    });
+    content0.appendChild(siBtn);
+    content0.appendChild(div({style:{height:'1rem'}}));
+    content0.appendChild(btn({class:'btn bg',style:{width:'100%'},onclick:function(){STATE.ob.step=0;render();}},'Create a new account'));
+    return wrap;
+  }
+
+  // Step 0+ — new account flow
   var dots=div({style:{display:'flex',gap:'6px',marginBottom:'1.5rem'}});
   [0,1,2,3].forEach(function(i){dots.appendChild(div({class:'sdot'+(i===ob.step?' on':i<ob.step?' dn':'')}));});
   card.appendChild(dots);
@@ -509,6 +549,8 @@ function renderOnboard(){
     content.appendChild(ni);
     content.appendChild(div({style:{height:'1rem'}}));
     content.appendChild(btn({class:'btn bp',style:{width:'100%'},onclick:function(){STATE.ob.step=1;render();}},['Get started']));
+    content.appendChild(div({style:{height:'0.75rem'}}));
+    content.appendChild(btn({class:'btn bg',style:{width:'100%'},onclick:function(){STATE.ob.step=-1;render();}},'Already have an account? Sign in'));
   }
   else if(ob.step===1){
     content.appendChild(el('p',{style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1rem'}},'Pick a unique handle - this becomes your shareable link.'));
