@@ -10,10 +10,14 @@
 <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiU2hpZnRTdGFjayIsInNob3J0X25hbWUiOiJTaGlmdFN0YWNrIiwic3RhcnRfdXJsIjoiLyIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMwYTBjMGYiLCJ0aGVtZV9jb2xvciI6IiM0ZjljZjkiLCJpY29ucyI6W119"/>
 <title>ShiftStack</title>
 <style>
+html,body{margin:0;padding:0;background:#0a0c0f!important}
+#app{background:#0a0c0f;min-height:100vh}
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#0a0c0f;--bg2:#111318;--bg3:#181c22;--bd:rgba(255,255,255,0.08);--bd2:rgba(255,255,255,0.14);--tx:#f0f0ee;--tx2:#8a8f9a;--tx3:#4a4f5a;--ac:#4f9cf9;--gr:#2db87a;--or:#f0a030;--rd:#e85555;--pu:#a064f0;--pi:#f06090}
 body{background:var(--bg);color:var(--tx);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes fusePop{from{opacity:0;transform:scale(0.5)}to{opacity:1;transform:scale(1)}}
+@keyframes fuseUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .fu{animation:fadeUp .3s ease both}
 button{cursor:pointer;font-family:inherit}
 .btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;padding:9px 18px;border-radius:8px;border:none;transition:all .15s}
@@ -59,7 +63,7 @@ label{font-size:12px;color:var(--tx2);display:block;margin-bottom:5px}
 .logo{font-size:28px;font-weight:800;margin-bottom:.25rem}.logo span{color:var(--ac)}
 .sdot{width:6px;height:6px;border-radius:3px;background:var(--bd2);transition:all .2s;display:inline-block}
 .sdot.on{width:18px;background:var(--ac)}.sdot.dn{background:var(--gr)}
-.sbox{background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:10px 14px;font-family:monospace;font-size:12px;color:var(--ac);word-break:break-all}
+.sbox{background:var(--bg3);border-radius:8px;padding:10px 14px;font-family:monospace;font-size:12px;color:var(--ac);word-break:break-all}
 .tog{width:40px;height:22px;border-radius:11px;background:var(--bg3);border:1px solid var(--bd2);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
 .tog.on{background:var(--ac);border-color:var(--ac)}
 .tok{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:white;transition:transform .2s}
@@ -68,9 +72,23 @@ label{font-size:12px;color:var(--tx2);display:block;margin-bottom:5px}
 .hr-row label{margin:0;flex:1;font-size:13px;color:var(--tx2)}
 .spinner{display:inline-block;width:24px;height:24px;border:2px solid var(--bd2);border-top-color:var(--ac);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+/* ── Fuse branding ── */
+.fuse-splash{position:fixed;inset:0;z-index:9999;background:#0C0B0A;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.fuse-splash-icon{width:64px;height:64px;background:#E8503C;border-radius:18px;display:flex;align-items:center;justify-content:center;animation:fusePop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.3s both}
+.fuse-splash-name{font-family:'Segoe UI',system-ui,sans-serif;font-size:32px;font-weight:800;letter-spacing:-0.5px;color:#fff;animation:fuseUp 0.4s ease 0.7s both}
+.fuse-splash-by{font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:0.14em;text-transform:uppercase;animation:fuseUp 0.4s ease 0.9s both}
+.fuse-footer{border-top:1px solid rgba(255,255,255,0.06);padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:6px;max-width:480px;margin:0 auto}
+.fuse-footer-icon{width:15px;height:15px;background:#0C0B0A;border:1px solid #333;border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.fuse-footer-word{font-family:'Segoe UI',system-ui,sans-serif;font-size:10px;font-weight:700;color:#555;letter-spacing:0.08em}
+.fuse-footer-sep{font-size:10px;color:#333}
+.fuse-footer-by{font-size:10px;color:#555}
 </style>
+<script>
+document.documentElement.style.background='#0a0c0f';
+document.documentElement.style.setProperty('color-scheme','dark');
+</script>
 </head>
-<body>
+<body style="background:#0a0c0f;margin:0;padding:0;">
 <div id="app"></div>
 <script>
 // ─── Supabase ─────────────────────────────────────────────────────────────────
@@ -113,7 +131,6 @@ function dbUpsertPay(userId,settings){
   });
 }
 
-// localStorage helpers — used only for session persistence (handle cache)
 var lcGet=function(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}};
 var lcSet=function(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
 
@@ -183,13 +200,12 @@ var DEFAULT_DIFFS = [
 ];
 
 // ─── State ────────────────────────────────────────────────────────────────────
-// All persistent data now lives in Supabase. STATE holds runtime session data only.
 var DEFAULT_PAY = {rateHistory:[],payPeriodAnchor:fmtDate(new Date()),raiseMonth:'10',differentials:DEFAULT_DIFFS,payRules:DEFAULT_PAY_RULES,locPaySettings:[]};
 
 var STATE = {
-  user: null,         // loaded from Supabase on boot
-  overrides: {},      // loaded from Supabase on boot
-  pay: DEFAULT_PAY,   // loaded from Supabase on boot
+  user: null,
+  overrides: {},
+  pay: DEFAULT_PAY,
   tab: 'calendar',
   modal: null,
   calMonth: new Date().getMonth(),
@@ -204,7 +220,8 @@ var STATE = {
   groupMonth: new Date().getMonth(),
   groupYear: new Date().getFullYear(),
   payJobTab: null,
-  loading: true
+  loading: true,
+  splashDone: false
 };
 
 function fmtDate(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
@@ -213,7 +230,7 @@ function todayKey(){return fmtDate(new Date());}
 function fmt$(n){return n.toLocaleString('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2});}
 function fmtH(n){return n%1===0?n+'h':n.toFixed(1)+'h';}
 
-// ─── Save helpers (write to Supabase + update STATE) ──────────────────────────
+// ─── Save helpers ─────────────────────────────────────────────────────────────
 function saveUser(data){
   STATE.user=data;
   return dbUpdateUser(data.id,{name:data.name,locations:data.locations,rotations:data.rotations});
@@ -396,10 +413,70 @@ var ICONS={
 };
 function ic(name,size){return svgIcon(ICONS[name]||'',size);}
 
+// ─── Fuse splash helpers ──────────────────────────────────────────────────────
+function fuseSvgIcon(){
+  var ns='http://www.w3.org/2000/svg';
+  var s=document.createElementNS(ns,'svg');
+  s.setAttribute('width','32');s.setAttribute('height','32');s.setAttribute('viewBox','0 0 32 32');s.setAttribute('fill','none');
+  var line=document.createElementNS(ns,'line');
+  line.setAttribute('x1','5');line.setAttribute('y1','16');line.setAttribute('x2','22');line.setAttribute('y2','16');
+  line.setAttribute('stroke','white');line.setAttribute('stroke-width','2.5');line.setAttribute('stroke-linecap','round');
+  var circle1=document.createElementNS(ns,'circle');
+  circle1.setAttribute('cx','22');circle1.setAttribute('cy','16');circle1.setAttribute('r','6');
+  circle1.setAttribute('stroke','white');circle1.setAttribute('stroke-width','2');
+  var circle2=document.createElementNS(ns,'circle');
+  circle2.setAttribute('cx','22');circle2.setAttribute('cy','16');circle2.setAttribute('r','2.4');circle2.setAttribute('fill','white');
+  s.appendChild(line);s.appendChild(circle1);s.appendChild(circle2);
+  return s;
+}
+
+function renderFuseSplash(){
+  var splash=div({class:'fuse-splash'});
+  var icon=div({class:'fuse-splash-icon'});
+  icon.appendChild(fuseSvgIcon());
+  splash.appendChild(icon);
+  splash.appendChild(div({class:'fuse-splash-name'},'ShiftStack'));
+  splash.appendChild(div({class:'fuse-splash-by'},'Fuse Apps · by TNT Labs'));
+  return splash;
+}
+
+function renderFuseFooter(){
+  var footer=div({class:'fuse-footer'});
+  var icon=div({class:'fuse-footer-icon'});
+  var ns='http://www.w3.org/2000/svg';
+  var s=document.createElementNS(ns,'svg');
+  s.setAttribute('width','9');s.setAttribute('height','9');s.setAttribute('viewBox','0 0 9 9');s.setAttribute('fill','none');
+  var fl=document.createElementNS(ns,'line');
+  fl.setAttribute('x1','1.5');fl.setAttribute('y1','4.5');fl.setAttribute('x2','6.5');fl.setAttribute('y2','4.5');
+  fl.setAttribute('stroke','white');fl.setAttribute('stroke-width','1.3');fl.setAttribute('stroke-linecap','round');
+  var fc=document.createElementNS(ns,'circle');
+  fc.setAttribute('cx','6.5');fc.setAttribute('cy','4.5');fc.setAttribute('r','1.8');
+  fc.setAttribute('stroke','white');fc.setAttribute('stroke-width','0.9');
+  s.appendChild(fl);s.appendChild(fc);icon.appendChild(s);
+  footer.appendChild(icon);
+  footer.appendChild(el('span',{class:'fuse-footer-word'},'Fuse Apps'));
+  footer.appendChild(el('span',{class:'fuse-footer-sep'},'·'));
+  footer.appendChild(el('span',{class:'fuse-footer-by'},'by TNT Labs'));
+  return footer;
+}
+
 // ─── Render engine ────────────────────────────────────────────────────────────
 var app=document.getElementById('app');
 function render(){
   while(app.firstChild) app.removeChild(app.firstChild);
+
+  // Fuse splash
+  if(!STATE.splashDone){
+    var splash=renderFuseSplash();
+    app.appendChild(splash);
+    setTimeout(function(){
+      STATE.splashDone=true;
+      sessionStorage.setItem('fuse_shiftstack_launched','1');
+      render();
+    },2400);
+    return;
+  }
+
   var params=new URLSearchParams(window.location.search);
   var pub=params.get('view');
   if(pub){renderPublicAsync(pub);return;}
@@ -409,10 +486,22 @@ function render(){
     app.appendChild(lw);return;
   }
   if(!STATE.user){app.appendChild(renderOnboard());return;}
-  app.appendChild(renderApp());
+
+  var wrap=div({});
+  var page=div({});
+  var tab=STATE.tab;
+  if(tab==='calendar') page=renderCalendar();
+  else if(tab==='hours') page=renderHours();
+  else if(tab==='group') page=renderGroup();
+  else if(tab==='settings') page=renderSettings();
+  wrap.appendChild(page);
+  wrap.appendChild(renderFuseFooter());
+  if(STATE.modal) wrap.appendChild(renderModal(STATE.modal.key,STATE.modal.data));
+  wrap.appendChild(renderNav());
+  app.appendChild(wrap);
 }
 
-// ─── Public View — fetches from Supabase ─────────────────────────────────────
+// ─── Public View ──────────────────────────────────────────────────────────────
 function renderPublicAsync(handle){
   var lw=div({style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}});
   lw.appendChild(div({class:'spinner'}));
@@ -427,7 +516,6 @@ function renderPublicAsync(handle){
       inner.appendChild(btn({class:'btn bg',onclick:function(){window.location.href=window.location.pathname;}},'Open app'));
       wrap.appendChild(inner);app.appendChild(wrap);return;
     }
-    // Fetch overrides for this user (no pay — privacy)
     dbGetOverrides(userData.id).then(function(overrides){
       var rotations=userData.rotations||[];
       if(!rotations.length&&userData.rotation) rotations=[Object.assign({},userData.rotation,{locationId:0})];
@@ -443,8 +531,6 @@ function renderPublicAsync(handle){
       pg.appendChild(header2);
       var content=div({style:{padding:'1rem'}});
       var card=div({class:'card',style:{padding:'1rem'}});
-
-      // Month nav for public view
       var pubMonth=month,pubYear=year;
       function buildPubCal(){
         card.innerHTML='';
@@ -496,7 +582,6 @@ function renderOnboard(){
   card.appendChild(div({class:'logo'},['Shift',el('span',null,'Stack')]));
   card.appendChild(el('p',{style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1.25rem'}},'Your shift schedule, organized.'));
 
-  // Sign-in screen (step -1)
   if(ob.step===-1){
     var content0=div({class:'fu'});
     card.appendChild(content0);
@@ -534,7 +619,6 @@ function renderOnboard(){
     return wrap;
   }
 
-  // Step 0+ — new account flow
   var dots=div({style:{display:'flex',gap:'6px',marginBottom:'1.5rem'}});
   [0,1,2,3].forEach(function(i){dots.appendChild(div({class:'sdot'+(i===ob.step?' on':i<ob.step?' dn':'')}));});
   card.appendChild(dots);
@@ -656,21 +740,6 @@ function renderOnboard(){
     });
     row.appendChild(launchBtn);content.appendChild(row);
   }
-  return wrap;
-}
-
-// ─── Main App Shell ───────────────────────────────────────────────────────────
-function renderApp(){
-  var wrap=div({});
-  var page=div({});
-  var tab=STATE.tab;
-  if(tab==='calendar') page=renderCalendar();
-  else if(tab==='hours') page=renderHours();
-  else if(tab==='group') page=renderGroup();
-  else if(tab==='settings') page=renderSettings();
-  wrap.appendChild(page);
-  if(STATE.modal) wrap.appendChild(renderModal(STATE.modal.key,STATE.modal.data));
-  wrap.appendChild(renderNav());
   return wrap;
 }
 
@@ -800,12 +869,7 @@ function renderModal(dayKey,dayData){
     hrRow.appendChild(hi);formWrap.appendChild(hrRow);
     var brow=div({style:{display:'flex',gap:'8px'}});
     var hasAny=Object.keys(perLoc).some(function(k){var o=perLoc[k];return o.tag||o.note||o.actualHours;});
-    if(hasAny){
-      brow.appendChild(btn({class:'btn bd2c bsm',onclick:function(){
-        saveOverride(dayKey,null);
-        STATE.modal=null;render();
-      }},'Clear all'));
-    }
+    if(hasAny){brow.appendChild(btn({class:'btn bd2c bsm',onclick:function(){saveOverride(dayKey,null);STATE.modal=null;render();}},'Clear all'));}
     brow.appendChild(btn({class:'btn bp',style:{flex:'1'},onclick:function(){
       var taCur=formWrap.querySelector('textarea');var hiCur=formWrap.querySelector('input[type=number]');
       if(taCur) perLoc[activeTab].note=taCur.value;if(hiCur) perLoc[activeTab].actualHours=hiCur.value;
@@ -1029,7 +1093,7 @@ function renderSettings(){
       var locInp=inp({placeholder:'New location (e.g. Second job)',value:''});
       locInp.addEventListener('keydown',function(e){if(e.key==='Enter'&&this.value.trim()){addLoc(this.value.trim());this.value='';}});
       addLocRow.appendChild(locInp);
-      addLocRow.appendChild(btn({class:'btn bp bsm',onclick:function(){var v=locInp.value.trim();if(v){addLoc(v);locInp.value='';}}  },[ic('pls',13),txt('Add')]));
+      addLocRow.appendChild(btn({class:'btn bp bsm',onclick:function(){var v=locInp.value.trim();if(v){addLoc(v);locInp.value='';}}},[ic('pls',13),txt('Add')]));
       pg.appendChild(addLocRow);
     }
   }
@@ -1248,8 +1312,12 @@ function renderPaySettings(pg,locs,pay){
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 (function boot(){
+  // Check sessionStorage for splash — show every fresh session
+  if(sessionStorage.getItem('fuse_shiftstack_launched')){
+    STATE.splashDone=true;
+  }
   var params=new URLSearchParams(window.location.search);
-  if(params.get('view')){STATE.loading=false;render();return;}
+  if(params.get('view')){STATE.loading=false;STATE.splashDone=true;render();return;}
   var savedHandle=lcGet('ss_handle',null);
   if(savedHandle){
     dbGetUser(savedHandle).then(function(u){
