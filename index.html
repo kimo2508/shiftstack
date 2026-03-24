@@ -122,12 +122,18 @@ function dbDeleteOverride(userId,dateKey){
   return supaFetch('overrides?user_id=eq.'+userId+'&date_key=eq.'+encodeURIComponent(dateKey),{method:'DELETE'});
 }
 function dbGetPay(userId){
-  return supaFetch('pay_settings?user_id=eq.'+userId+'&select=*&limit=1').then(function(r){return r&&r.length?r[0].settings:null;});
+  return supaFetch('pay_settings?user_id=eq.'+userId+'&select=*&limit=1').then(function(r){
+    if(!r||!r.length) return null;
+    var s=r[0].settings;
+    if(typeof s==='string'){try{s=JSON.parse(s);}catch(e){return null;}}
+    return s;
+  });
 }
 function dbUpsertPay(userId,settings){
+  var clean=typeof settings==='string'?settings:JSON.stringify(settings);
   return supaFetch('pay_settings',{method:'POST',
     headers:{'Prefer':'resolution=merge-duplicates,return=representation'},
-    body:JSON.stringify({user_id:userId,settings:settings})
+    body:JSON.stringify({user_id:userId,settings:clean})
   });
 }
 
@@ -608,7 +614,9 @@ function renderOnboard(){
         STATE.user=u;
         return Promise.all([dbGetOverrides(u.id),dbGetPay(u.id)]).then(function(results){
           STATE.overrides=results[0]||{};
-          STATE.pay=results[1]||Object.assign({},DEFAULT_PAY);
+          var rawPay=results[1];
+          if(typeof rawPay==='string'){try{rawPay=JSON.parse(rawPay);}catch(e){rawPay=null;}}
+          STATE.pay=rawPay||Object.assign({},DEFAULT_PAY);
           STATE.tab='calendar';render();
         });
       }).catch(function(){siErr.textContent='Error connecting. Try again.';siBtn.disabled=false;siBtn.textContent='Sign in';});
@@ -1325,7 +1333,9 @@ function renderPaySettings(pg,locs,pay){
         STATE.user=u;
         return Promise.all([dbGetOverrides(u.id),dbGetPay(u.id)]).then(function(results){
           STATE.overrides=results[0]||{};
-          STATE.pay=results[1]||Object.assign({},DEFAULT_PAY);
+          var rawPay=results[1];
+          if(typeof rawPay==='string'){try{rawPay=JSON.parse(rawPay);}catch(e){rawPay=null;}}
+          STATE.pay=rawPay||Object.assign({},DEFAULT_PAY);
           STATE.loading=false;render();
         });
       } else {
