@@ -149,8 +149,16 @@ label{font-size:12px;color:var(--tx2);display:block;margin-bottom:5px}
 var SUPA_URL='https://bynpdarzrkmpqwnfkdwz.supabase.co';
 var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5bnBkYXJ6cmttcHF3bmZrZHd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTI2NjIsImV4cCI6MjA4OTg2ODY2Mn0.EYZr-HnPekTcFMymck-4Yhvz_V-6zbRkHBzqBbumB10';
 
+function getSessionToken(){
+  try{
+    var key=Object.keys(localStorage).find(function(k){return k.startsWith('sb-')&&k.endsWith('-auth-token');});
+    if(key){var v=JSON.parse(localStorage.getItem(key));if(v&&v.access_token)return v.access_token;}
+  }catch(e){}
+  return null;
+}
 function supaFetch(path,opts){
-  var headers={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':'return=representation'};
+  var token=getSessionToken()||SUPA_KEY;
+  var headers={'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=representation'};
   if(opts&&opts.headers) Object.assign(headers,opts.headers);
   return fetch(SUPA_URL+'/rest/v1/'+path,Object.assign({},opts,{headers:headers}))
     .then(function(r){return r.text().then(function(t){if(!r.ok)throw new Error(t||r.status);return t?JSON.parse(t):null;});});
@@ -306,12 +314,12 @@ function saveUser(data){
 }
 function saveOverride(dateKey,data){
   var nOv=Object.assign({},STATE.overrides);
-  if(data){nOv[dateKey]=data;STATE.overrides=nOv;dbUpsertOverride(STATE.user.id,dateKey,data).catch(function(){});}
-  else{delete nOv[dateKey];STATE.overrides=nOv;dbDeleteOverride(STATE.user.id,dateKey).catch(function(){});}
+  if(data){nOv[dateKey]=data;STATE.overrides=nOv;dbUpsertOverride(STATE.user.id,dateKey,data).catch(function(e){console.error('saveOverride failed:',e&&e.message||e);});}
+  else{delete nOv[dateKey];STATE.overrides=nOv;dbDeleteOverride(STATE.user.id,dateKey).catch(function(e){console.error('deleteOverride failed:',e&&e.message||e);});}
 }
 function savePay(pay){
   STATE.pay=pay;
-  dbUpsertPay(STATE.user.id,pay).catch(function(){});
+  dbUpsertPay(STATE.user.id,pay).catch(function(e){console.error('savePay failed:',e&&e.message||e);});
 }
 
 // ─── Schedule builder ─────────────────────────────────────────────────────────
@@ -1200,7 +1208,7 @@ function renderSettings(){
     pg.appendChild(div({class:'slab'},'Danger zone'));
     var dz=div({class:'card',style:{padding:'1rem'}});
     dz.appendChild(div({style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1rem'}},'Sign out on this device. Your data stays in the cloud.'));
-    dz.appendChild(btn({class:'btn bd2c',style:{width:'100%'},onclick:function(){if(window.confirm('Sign out of ShiftStack?')){lcSet('ss_handle',null);localStorage.removeItem('ss_handle');STATE.user=null;STATE.overrides={};STATE.pay=Object.assign({},DEFAULT_PAY);STATE.loading=false;render();}}},'Sign out'));
+    dz.appendChild(btn({class:'btn bd2c',style:{width:'100%'},onclick:function(){if(window.confirm('Sign out of ShiftStack?')){lcSet('ss_handle',null);localStorage.removeItem('ss_handle');STATE.user=null;STATE.overrides={};STATE.pay=Object.assign({},DEFAULT_PAY);STATE.loading=false;signOutSession().catch(function(){});render();}}},'Sign out'));
     pg.appendChild(dz);
   }
   return pg;
@@ -1404,36 +1412,72 @@ function renderPaySettings(pg,locs,pay){
   pg.appendChild(buildJobSection(activeLoc.id,isFirst));pg.appendChild(saveBtn);
 }
 
+// ─── Supabase Auth ────────────────────────────────────────────────────────────
+var _supaClient=null;
+function getSupaClient(){
+  if(_supaClient) return Promise.resolve(_supaClient);
+  return new Promise(function(resolve,reject){
+    if(window.supabase){
+      _supaClient=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+      resolve(_supaClient);return;
+    }
+    var s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+    s.onload=function(){
+      _supaClient=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+      resolve(_supaClient);
+    };
+    s.onerror=function(){reject(new Error('Failed to load supabase-js'));};
+    document.head.appendChild(s);
+  });
+}
+function ensureAnonSession(){
+  return getSupaClient().then(function(client){
+    return client.auth.getSession().then(function(res){
+      if(res.data&&res.data.session) return res.data.session;
+      return client.auth.signInAnonymously().then(function(r){return r.data&&r.data.session;});
+    });
+  });
+}
+function signOutSession(){
+  return getSupaClient().then(function(client){return client.auth.signOut();});
+}
+
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 (function boot(){
   if(sessionStorage.getItem('fuse_shiftstack_launched')){
     STATE.splashDone=true;
   }
-  // Apply theme on boot
   setTheme(getTheme());
   var params=new URLSearchParams(window.location.search);
   if(params.get('view')){STATE.loading=false;STATE.splashDone=true;render();return;}
-  var savedHandle=lcGet('ss_handle',null);
-  if(savedHandle){
-    dbGetUser(savedHandle).then(function(u){
-      if(u){
-        STATE.user=u;
-        return Promise.all([dbGetOverrides(u.id),dbGetPay(u.id)]).then(function(results){
-          STATE.overrides=results[0]||{};
-          var rawPay=results[1];
-          if(typeof rawPay==='string'){try{rawPay=JSON.parse(rawPay);}catch(e){rawPay=null;}}
-          STATE.pay=rawPay||Object.assign({},DEFAULT_PAY);
+  ensureAnonSession().catch(function(e){console.warn('anon session failed, continuing without auth:',e);}).then(function(){
+    var savedHandle=lcGet('ss_handle',null);
+    if(savedHandle){
+      dbGetUser(savedHandle).then(function(u){
+        if(u){
+          STATE.user=u;
+          return Promise.all([dbGetOverrides(u.id),dbGetPay(u.id)]).then(function(results){
+            STATE.overrides=results[0]||{};
+            var rawPay=results[1];
+            if(typeof rawPay==='string'){try{rawPay=JSON.parse(rawPay);}catch(e){rawPay=null;}}
+            STATE.pay=rawPay||Object.assign({},DEFAULT_PAY);
+            STATE.loading=false;render();
+          });
+        } else {
+          localStorage.removeItem('ss_handle');
           STATE.loading=false;render();
-        });
-      } else {
-        localStorage.removeItem('ss_handle');
-        STATE.loading=false;render();
-      }
-    }).catch(function(){STATE.loading=false;render();});
-  } else {
-    STATE.loading=false;render();
-  }
+        }
+      }).catch(function(){STATE.loading=false;render();});
+    } else {
+      STATE.loading=false;render();
+    }
+  });
 })();
 </script>
 </body>
-</html>
+</html>"""
+
+with open('/home/claude/source.html', 'w') as f:
+    f.write(content)
+print("Written", len(content), "chars")
