@@ -192,10 +192,9 @@ function dbGetPay(userId){
   });
 }
 function dbUpsertPay(userId,settings){
-  var clean=typeof settings==='string'?settings:JSON.stringify(settings);
-  return supaFetch('pay_settings',{method:'POST',
+  return supaFetch('pay_settings?on_conflict=user_id',{method:'POST',
     headers:{'Prefer':'resolution=merge-duplicates,return=representation'},
-    body:JSON.stringify({user_id:userId,settings:clean})
+    body:JSON.stringify({user_id:userId,settings:settings})
   });
 }
 
