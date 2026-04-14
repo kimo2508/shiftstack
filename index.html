@@ -183,18 +183,17 @@ function dbUpsertOverride(userId,dateKey,data){
 function dbDeleteOverride(userId,dateKey){
   return supaFetch('overrides?user_id=eq.'+userId+'&date_key=eq.'+encodeURIComponent(dateKey),{method:'DELETE'});
 }
-function dbGetPay(userId){
-  return supaFetch('pay_settings?user_id=eq.'+userId+'&select=*&limit=1').then(function(r){
-    if(!r||!r.length) return null;
-    var s=r[0].settings;
-    if(typeof s==='string'){try{s=JSON.parse(s);}catch(e){return null;}}
-    return s;
-  });
+
+// ─── Pay: stored directly on users row, no separate table ─────────────────────
+function dbGetPay(userRow){
+  var s=userRow&&userRow.pay_settings;
+  if(!s) return null;
+  if(typeof s==='string'){try{s=JSON.parse(s);}catch(e){return null;}}
+  return s;
 }
 function dbUpsertPay(userId,settings){
-  return supaFetch('pay_settings?on_conflict=user_id',{method:'POST',
-    headers:{'Prefer':'resolution=merge-duplicates,return=representation'},
-    body:JSON.stringify({user_id:userId,settings:settings})
+  return supaFetch('users?id=eq.'+userId,{method:'PATCH',
+    body:JSON.stringify({pay_settings:settings})
   });
 }
 
@@ -681,11 +680,10 @@ function renderOnboard(){
         if(!u){siErr.textContent='Handle not found. Check the spelling or sign up.';siBtn.disabled=false;siBtn.textContent='Sign in';return;}
         lcSet('ss_handle',u.handle);
         STATE.user=u;
-        return Promise.all([dbGetOverrides(u.id),dbGetPay(u.id)]).then(function(results){
-          STATE.overrides=results[0]||{};
-          var rawPay=results[1];
-          if(typeof rawPay==='string'){try{rawPay=JSON.parse(rawPay);}catch(e){rawPay=null;}}
-          STATE.pay=rawPay||Object.assign({},DEFAULT_PAY);
+        // ── pay comes directly from the user row, no extra fetch needed ──
+        return dbGetOverrides(u.id).then(function(overrides){
+          STATE.overrides=overrides||{};
+          STATE.pay=dbGetPay(u)||Object.assign({},DEFAULT_PAY);
           STATE.tab='calendar';render();
         });
       }).catch(function(){siErr.textContent='Error connecting. Try again.';siBtn.disabled=false;siBtn.textContent='Sign in';});
@@ -1148,15 +1146,12 @@ function renderSettings(){
   });
   pg.appendChild(tabs);
 
-  // ── THEME TOGGLE (appears on all settings tabs at the top) ──
+  // ── Theme toggle ──
   var themeCard=div({class:'theme-card'});
   themeCard.appendChild(div({class:'slab',style:{marginBottom:'6px'}},'Appearance'));
   var curTheme=getTheme();
   var themeOpts=div({class:'theme-options'});
-  [
-    {id:'dark',label:'Dark'},
-    {id:'light',label:'Light'}
-  ].forEach(function(t){
+  [{id:'dark',label:'Dark'},{id:'light',label:'Light'}].forEach(function(t){
     var opt=btn({class:'theme-opt'+(curTheme===t.id?' selected':'')});
     var prev=div({class:'theme-preview '+(t.id==='dark'?'dark-prev':'light-prev')});
     prev.appendChild(div({class:'theme-preview-bar'}));
@@ -1456,11 +1451,10 @@ function signOutSession(){
       dbGetUser(savedHandle).then(function(u){
         if(u){
           STATE.user=u;
-          return Promise.all([dbGetOverrides(u.id),dbGetPay(u.id)]).then(function(results){
-            STATE.overrides=results[0]||{};
-            var rawPay=results[1];
-            if(typeof rawPay==='string'){try{rawPay=JSON.parse(rawPay);}catch(e){rawPay=null;}}
-            STATE.pay=rawPay||Object.assign({},DEFAULT_PAY);
+          // ── pay comes directly from the user row, no extra fetch needed ──
+          return dbGetOverrides(u.id).then(function(overrides){
+            STATE.overrides=overrides||{};
+            STATE.pay=dbGetPay(u)||Object.assign({},DEFAULT_PAY);
             STATE.loading=false;render();
           });
         } else {
@@ -1475,8 +1469,4 @@ function signOutSession(){
 })();
 </script>
 </body>
-</html>"""
-
-with open('/home/claude/source.html', 'w') as f:
-    f.write(content)
-print("Written", len(content), "chars")
+</html>
