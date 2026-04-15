@@ -145,10 +145,39 @@ label{font-size:12px;color:var(--tx2);display:block;margin-bottom:5px}
 <body>
 <div id="app"></div>
 <script>
-// ─── Supabase ─────────────────────────────────────────────────────────────────
+// ─── Supabase config ──────────────────────────────────────────────────────────
 var SUPA_URL='https://bynpdarzrkmpqwnfkdwz.supabase.co';
 var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5bnBkYXJ6cmttcHF3bmZrZHd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTI2NjIsImV4cCI6MjA4OTg2ODY2Mn0.EYZr-HnPekTcFMymck-4Yhvz_V-6zbRkHBzqBbumB10';
+var APP_URL='https://shiftstack-five.vercel.app';
 
+// ─── Supabase auth client (loaded on demand) ──────────────────────────────────
+var _supaClient=null;
+var _supaClientPromise=null;
+function getSupaClient(){
+  if(_supaClient) return Promise.resolve(_supaClient);
+  if(_supaClientPromise) return _supaClientPromise;
+  _supaClientPromise=new Promise(function(resolve,reject){
+    function init(){
+      _supaClient=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+      resolve(_supaClient);
+    }
+    if(window.supabase){init();return;}
+    var s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+    s.onload=init;
+    s.onerror=function(){reject(new Error('Failed to load supabase-js'));};
+    document.head.appendChild(s);
+  });
+  return _supaClientPromise;
+}
+function getCurrentSession(){
+  return getSupaClient().then(function(c){return c.auth.getSession();}).then(function(r){return r.data&&r.data.session||null;});
+}
+function signOutSession(){
+  return getSupaClient().then(function(c){return c.auth.signOut();});
+}
+
+// ─── Low-level fetch (uses real session JWT when available) ───────────────────
 function getSessionToken(){
   try{
     var key=Object.keys(localStorage).find(function(k){return k.startsWith('sb-')&&k.endsWith('-auth-token');});
@@ -164,10 +193,14 @@ function supaFetch(path,opts){
     .then(function(r){return r.text().then(function(t){if(!r.ok)throw new Error(t||r.status);return t?JSON.parse(t):null;});});
 }
 
+// ─── Database accessors ───────────────────────────────────────────────────────
 function dbGetUser(handle){return supaFetch('users?handle=eq.'+encodeURIComponent(handle)+'&select=*&limit=1').then(function(r){return r&&r.length?r[0]:null;});}
+function dbGetUserByAuthId(authId){return supaFetch('users?auth_user_id=eq.'+encodeURIComponent(authId)+'&select=*&limit=1').then(function(r){return r&&r.length?r[0]:null;});}
+function dbGetUserByShareToken(token){return supaFetch('users?share_token=eq.'+encodeURIComponent(token)+'&select=*&limit=1').then(function(r){return r&&r.length?r[0]:null;});}
 function dbCheckHandle(handle){return supaFetch('users?handle=eq.'+encodeURIComponent(handle)+'&select=id&limit=1').then(function(r){return !r||r.length===0;});}
 function dbCreateUser(data){return supaFetch('users',{method:'POST',body:JSON.stringify(data)}).then(function(r){return r&&r.length?r[0]:null;});}
 function dbUpdateUser(id,data){return supaFetch('users?id=eq.'+id,{method:'PATCH',body:JSON.stringify(data)});}
+function dbLinkAuthId(userId,authId){return supaFetch('users?id=eq.'+userId,{method:'PATCH',body:JSON.stringify({auth_user_id:authId})});}
 
 function dbGetOverrides(userId){
   return supaFetch('overrides?user_id=eq.'+userId+'&select=*').then(function(rows){
@@ -184,7 +217,6 @@ function dbDeleteOverride(userId,dateKey){
   return supaFetch('overrides?user_id=eq.'+userId+'&date_key=eq.'+encodeURIComponent(dateKey),{method:'DELETE'});
 }
 
-// ─── Pay: stored directly on users row, no separate table ─────────────────────
 function dbGetPay(userRow){
   var s=userRow&&userRow.pay_settings;
   if(!s) return null;
@@ -279,13 +311,16 @@ var DEFAULT_PAY = {rateHistory:[],payPeriodAnchor:fmtDate(new Date()),raiseMonth
 
 var STATE = {
   user: null,
+  authUser: null,
   overrides: {},
   pay: DEFAULT_PAY,
   tab: 'calendar',
   modal: null,
   calMonth: new Date().getMonth(),
   calYear: new Date().getFullYear(),
-  ob: {step:0,name:'',handle:'',handleOk:null,presetId:'10on4off',anchorDate:fmtDate(new Date()),customPat:'',locs:[{id:0,name:'Primary Job',color:'#4f9cf9'}],newLoc:''},
+  ob: {step:0,name:'',handle:'',handleOk:null,presetId:'10on4off',anchorDate:fmtDate(new Date()),customPat:'',locs:[{id:0,name:'Primary Job',color:'#4f9cf9'}],newLoc:'',email:'',magicSent:false,authBusy:false,authError:''},
+  signin: {email:'',busy:false,error:'',magicSent:false},
+  authView: 'signin',
   settingsTab: 'share',
   payPeriodIdx: null,
   expandedDay: null,
@@ -306,7 +341,6 @@ function fmt$(n){return n.toLocaleString('en-US',{style:'currency',currency:'USD
 function fmtH(n){return n%1===0?n+'h':n.toFixed(1)+'h';}
 
 // ─── Save helpers ─────────────────────────────────────────────────────────────
-// ─── Save helpers ─────────────────────────────────────────────────────────────
 function toast(msg,kind){
   var t=document.createElement('div');
   t.textContent=msg;
@@ -326,8 +360,8 @@ function saveUser(data){
 }
 function saveOverride(dateKey,data){
   var nOv=Object.assign({},STATE.overrides);
-  if(data){nOv[dateKey]=data;STATE.overrides=nOv;dbUpsertOverride(STATE.user.id,dateKey,data).catch(function(e){console.error('saveOverride failed:',e&&e.message||e);});}
-  else{delete nOv[dateKey];STATE.overrides=nOv;dbDeleteOverride(STATE.user.id,dateKey).catch(function(e){console.error('deleteOverride failed:',e&&e.message||e);});}
+  if(data){nOv[dateKey]=data;STATE.overrides=nOv;dbUpsertOverride(STATE.user.id,dateKey,data).catch(function(e){console.error('saveOverride failed:',e&&e.message||e);toast('Save failed - check connection','err');});}
+  else{delete nOv[dateKey];STATE.overrides=nOv;dbDeleteOverride(STATE.user.id,dateKey).catch(function(e){console.error('deleteOverride failed:',e&&e.message||e);toast('Save failed - check connection','err');});}
 }
 function savePay(pay){
   STATE.pay=pay;
@@ -504,9 +538,19 @@ var ICONS={
   chl:'<polyline points="15 18 9 12 15 6"/>',
   chr:'<polyline points="9 18 15 12 9 6"/>',
   cpy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>',
-  x:'<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'
+  x:'<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  mail:'<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>'
 };
 function ic(name,size){return svgIcon(ICONS[name]||'',size);}
+
+// ─── Google G logo (full color) ───────────────────────────────────────────────
+function googleLogoSvg(){
+  var ns='http://www.w3.org/2000/svg';
+  var s=document.createElementNS(ns,'svg');
+  s.setAttribute('width','18');s.setAttribute('height','18');s.setAttribute('viewBox','0 0 48 48');
+  s.innerHTML='<path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z"/><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>';
+  return s;
+}
 
 // ─── Fuse splash helpers ──────────────────────────────────────────────────────
 function fuseSvgIcon(){
@@ -572,14 +616,16 @@ function render(){
   }
 
   var params=new URLSearchParams(window.location.search);
-  var pub=params.get('view');
-  if(pub){renderPublicAsync(pub);return;}
+  var pubHandle=params.get('view');
+  var pubToken=params.get('s');
+  if(pubHandle||pubToken){renderPublicAsync(pubHandle,pubToken);return;}
+
   if(STATE.loading){
     var lw=div({style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}});
     lw.appendChild(div({class:'spinner'}));
     app.appendChild(lw);return;
   }
-  if(!STATE.user){app.appendChild(renderOnboard());return;}
+  if(!STATE.user){app.appendChild(renderAuth());return;}
 
   var wrap=div({});
   var page=div({});
@@ -595,33 +641,35 @@ function render(){
   app.appendChild(wrap);
 }
 
-// ─── Public View ──────────────────────────────────────────────────────────────
-function renderPublicAsync(handle){
+// ─── Public View (handle OR share token) ──────────────────────────────────────
+function renderPublicAsync(handle,token){
   var lw=div({style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}});
   lw.appendChild(div({class:'spinner'}));
   app.appendChild(lw);
-  dbGetUser(handle).then(function(userData){
+  var lookup=token?dbGetUserByShareToken(token):dbGetUser(handle);
+  lookup.then(function(userData){
     while(app.firstChild) app.removeChild(app.firstChild);
     if(!userData){
       var wrap=div({style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:'2rem',textAlign:'center'}});
       var inner=div();
       inner.appendChild(div({style:{fontSize:'32px',fontWeight:'800',marginBottom:'8px'}},['Shift',el('span',{style:{color:'var(--ac)'}},'Stack')]));
-      inner.appendChild(div({style:{color:'var(--tx2)',marginBottom:'1.5rem'}},'Schedule not found for @'+handle));
+      inner.appendChild(div({style:{color:'var(--tx2)',marginBottom:'1.5rem'}},'Schedule not found'));
       inner.appendChild(btn({class:'btn bg',onclick:function(){window.location.href=window.location.pathname;}},'Open app'));
       wrap.appendChild(inner);app.appendChild(wrap);return;
     }
-    dbGetOverrides(userData.id).then(function(overrides){
-      var rotations=userData.rotations||[];
-      if(!rotations.length&&userData.rotation) rotations=[Object.assign({},userData.rotation,{locationId:0})];
+    // SECURITY: strip pay_settings before rendering, even though it's a read-only view
+    var safeData=Object.assign({},userData);delete safeData.pay_settings;
+    dbGetOverrides(safeData.id).then(function(overrides){
+      var rotations=safeData.rotations||[];
+      if(!rotations.length&&safeData.rotation) rotations=[Object.assign({},safeData.rotation,{locationId:0})];
       var sched=buildSchedule(rotations,overrides);
-      var locs=userData.locations||[];
+      var locs=safeData.locations||[];
       var month=new Date().getMonth(),year=new Date().getFullYear();
-      var dim=new Date(year,month+1,0).getDate(),fdow=new Date(year,month,1).getDay();
       var pg=div({style:{maxWidth:'480px',margin:'0 auto',paddingBottom:'2rem'}});
       var header2=div({style:{background:'var(--bg2)',padding:'2rem 1rem 1.5rem',textAlign:'center',borderBottom:'1px solid var(--bd)'}});
       header2.appendChild(div({style:{fontSize:'12px',color:'var(--tx3)',marginBottom:'4px',letterSpacing:'.04em',textTransform:'uppercase'}},'ShiftStack'));
-      header2.appendChild(div({style:{fontSize:'26px',fontWeight:'800',color:'var(--tx)'}},userData.name));
-      header2.appendChild(div({style:{fontSize:'13px',color:'var(--tx3)',marginTop:'4px'}},'@'+handle));
+      header2.appendChild(div({style:{fontSize:'26px',fontWeight:'800',color:'var(--tx)'}},safeData.name));
+      header2.appendChild(div({style:{fontSize:'13px',color:'var(--tx3)',marginTop:'4px'}},'@'+safeData.handle));
       pg.appendChild(header2);
       var content=div({style:{padding:'1rem'}});
       var card=div({class:'card',style:{padding:'1rem'}});
@@ -667,85 +715,189 @@ function renderPublicAsync(handle){
   });
 }
 
-// ─── Onboarding ───────────────────────────────────────────────────────────────
-function renderOnboard(){
-  var ob=STATE.ob;
+// ─── Auth screens (sign in / sign up) ─────────────────────────────────────────
+function renderAuth(){
   var wrap=div({class:'ob'});
   var card=div({class:'oc fu'});
   wrap.appendChild(card);
   card.appendChild(div({class:'logo'},['Shift',el('span',null,'Stack')]));
   card.appendChild(el('p',{style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1.25rem'}},'Your shift schedule, organized.'));
 
-  if(ob.step===-1){
-    var content0=div({class:'fu'});
-    card.appendChild(content0);
-    content0.appendChild(el('p',{style:{fontSize:'14px',color:'var(--tx2)',lineHeight:'1.7',marginBottom:'1.25rem'}},'Welcome back! Enter your handle to sign in.'));
-    content0.appendChild(el('label',null,'Your handle'));
-    var siWrap=div({style:{position:'relative',marginBottom:'8px'}});
-    siWrap.appendChild(div({style:{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)',fontSize:'13px',color:'var(--tx3)'}},'shiftstack.app/'));
-    var siInp=inp({placeholder:'tim_t',value:ob.signinHandle||''});
-    siInp.style.paddingLeft='115px';
-    siInp.addEventListener('input',function(){STATE.ob.signinHandle=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'');this.value=STATE.ob.signinHandle;});
-    siWrap.appendChild(siInp);
-    content0.appendChild(siWrap);
-    var siErr=div({style:{fontSize:'12px',color:'var(--rd)',marginBottom:'8px',minHeight:'18px'}});
-    content0.appendChild(siErr);
-    content0.appendChild(div({style:{height:'0.5rem'}}));
-    var siBtn=btn({class:'btn bp',style:{width:'100%'}},'Sign in');
-    siBtn.addEventListener('click',function(){
-      var h=(STATE.ob.signinHandle||'').trim();
-      if(!h){siErr.textContent='Enter your handle';return;}
-      siBtn.disabled=true;siBtn.textContent='Signing in...';siErr.textContent='';
-      dbGetUser(h).then(function(u){
-        if(!u){siErr.textContent='Handle not found. Check the spelling or sign up.';siBtn.disabled=false;siBtn.textContent='Sign in';return;}
-        lcSet('ss_handle',u.handle);
-        STATE.user=u;
-        // ── pay comes directly from the user row, no extra fetch needed ──
-        return dbGetOverrides(u.id).then(function(overrides){
-          STATE.overrides=overrides||{};
-          STATE.pay=dbGetPay(u)||Object.assign({},DEFAULT_PAY);
-          STATE.tab='calendar';render();
-        });
-      }).catch(function(){siErr.textContent='Error connecting. Try again.';siBtn.disabled=false;siBtn.textContent='Sign in';});
-    });
-    content0.appendChild(siBtn);
-    content0.appendChild(div({style:{height:'1rem'}}));
-    content0.appendChild(btn({class:'btn bg',style:{width:'100%'},onclick:function(){STATE.ob.step=0;render();}},'Create a new account'));
-    return wrap;
+  // Tab switcher
+  var tabs=div({style:{display:'flex',gap:'0',borderBottom:'1px solid var(--bd)',marginBottom:'1.5rem'}});
+  function mkTab(id,label){
+    var on=STATE.authView===id;
+    var t=btn({style:{flex:'1',padding:'10px 0',fontSize:'13px',fontWeight:'500',background:'none',border:'none',borderBottom:on?'2px solid var(--ac)':'2px solid transparent',color:on?'var(--ac)':'var(--tx3)',cursor:'pointer',fontFamily:'inherit'}},label);
+    t.addEventListener('click',function(){STATE.authView=id;STATE.signin={email:'',busy:false,error:'',magicSent:false};STATE.ob=Object.assign({},STATE.ob,{step:0,email:'',magicSent:false,authBusy:false,authError:''});render();});
+    tabs.appendChild(t);
   }
+  mkTab('signin','Sign In');
+  mkTab('signup','Sign Up');
+  card.appendChild(tabs);
 
-  var dots=div({style:{display:'flex',gap:'6px',marginBottom:'1.5rem'}});
-  [0,1,2,3].forEach(function(i){dots.appendChild(div({class:'sdot'+(i===ob.step?' on':i<ob.step?' dn':'')}));});
-  card.appendChild(dots);
   var content=div({class:'fu'});
   card.appendChild(content);
+  if(STATE.authView==='signin') renderSignInForm(content);
+  else renderSignUpFlow(content);
+  return wrap;
+}
 
+function googleBtn(busy){
+  var b=btn({class:'btn',style:{width:'100%',background:'#fff',color:'#1f1f1f',border:'1px solid #dadce0',padding:'11px 18px',fontWeight:'500',justifyContent:'center'}});
+  b.appendChild(googleLogoSvg());
+  b.appendChild(el('span',{style:{marginLeft:'10px'}},busy?'Connecting...':'Continue with Google'));
+  return b;
+}
+
+function renderSignInForm(content){
+  var si=STATE.signin;
+  if(si.magicSent){
+    var ok=div({style:{textAlign:'center',padding:'1.5rem 0'}});
+    var iconWrap=div({style:{width:'56px',height:'56px',background:'rgba(45,184,122,0.15)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1rem',color:'var(--gr)'}});
+    iconWrap.appendChild(ic('mail',26));
+    ok.appendChild(iconWrap);
+    ok.appendChild(div({style:{fontSize:'17px',fontWeight:'600',color:'var(--tx)',marginBottom:'8px'}},'Check your email'));
+    ok.appendChild(div({style:{fontSize:'13px',color:'var(--tx2)',lineHeight:'1.6'}},'We sent a sign-in link to '+si.email+'. Tap it to come back here, signed in.'));
+    ok.appendChild(div({style:{height:'1.25rem'}}));
+    ok.appendChild(btn({class:'btn bg bsm',onclick:function(){STATE.signin={email:'',busy:false,error:'',magicSent:false};render();}},'Use a different email'));
+    content.appendChild(ok);
+    return;
+  }
+
+  content.appendChild(el('p',{style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1rem',lineHeight:'1.6'}},'Welcome back. Sign in with your email or Google.'));
+
+  var gb=googleBtn(si.busy);
+  gb.addEventListener('click',function(){doGoogleAuth();});
+  content.appendChild(gb);
+
+  var divider=div({style:{display:'flex',alignItems:'center',gap:'10px',margin:'1rem 0',color:'var(--tx3)',fontSize:'11px'}});
+  divider.appendChild(div({style:{flex:'1',height:'1px',background:'var(--bd)'}}));
+  divider.appendChild(txt('OR'));
+  divider.appendChild(div({style:{flex:'1',height:'1px',background:'var(--bd)'}}));
+  content.appendChild(divider);
+
+  content.appendChild(el('label',null,'Email address'));
+  var eInp=inp({type:'email',placeholder:'you@example.com',value:si.email});
+  eInp.addEventListener('input',function(){STATE.signin.email=this.value;});
+  content.appendChild(eInp);
+
+  if(si.error){content.appendChild(div({style:{fontSize:'12px',color:'var(--rd)',marginTop:'8px',marginBottom:'4px'}},si.error));}
+
+  content.appendChild(div({style:{height:'10px'}}));
+  var sb=btn({class:'btn bp',style:{width:'100%'}});
+  sb.appendChild(ic('mail',15));sb.appendChild(txt(' '+(si.busy?'Sending...':'Email me a sign-in link')));
+  sb.addEventListener('click',function(){doSendMagicLink('signin');});
+  if(si.busy) sb.disabled=true;
+  content.appendChild(sb);
+
+  // Backwards-compat: legacy handle sign-in (collapsible)
+  content.appendChild(div({style:{height:'1.25rem'}}));
+  var legacy=el('details',{style:{fontSize:'12px',color:'var(--tx3)'}});
+  var summary=el('summary',{style:{cursor:'pointer',padding:'4px 0'}},'Have a legacy handle account?');
+  legacy.appendChild(summary);
+  var lwrap=div({style:{marginTop:'10px'}});
+  lwrap.appendChild(el('label',null,'Your handle'));
+  var lInp=inp({placeholder:'your_handle'});
+  lInp.addEventListener('input',function(){STATE.signin.legacyHandle=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'');this.value=STATE.signin.legacyHandle;});
+  lwrap.appendChild(lInp);
+  var lErr=div({style:{fontSize:'12px',color:'var(--rd)',marginTop:'6px',minHeight:'16px'}});
+  lwrap.appendChild(lErr);
+  var lBtn=btn({class:'btn bg bsm',style:{width:'100%',marginTop:'4px'},onclick:function(){
+    var h=(STATE.signin.legacyHandle||'').trim();
+    if(!h){lErr.textContent='Enter your handle';return;}
+    lBtn.disabled=true;lBtn.textContent='Signing in...';lErr.textContent='';
+    dbGetUser(h).then(function(u){
+      if(!u){lErr.textContent='Handle not found.';lBtn.disabled=false;lBtn.textContent='Sign in with handle';return;}
+      lcSet('ss_handle',u.handle);
+      STATE.user=u;
+      return dbGetOverrides(u.id).then(function(overrides){
+        STATE.overrides=overrides||{};
+        STATE.pay=dbGetPay(u)||Object.assign({},DEFAULT_PAY);
+        STATE.tab='calendar';render();
+      });
+    }).catch(function(){lErr.textContent='Error connecting. Try again.';lBtn.disabled=false;lBtn.textContent='Sign in with handle';});
+  }},'Sign in with handle');
+  lwrap.appendChild(lBtn);
+  legacy.appendChild(lwrap);
+  content.appendChild(legacy);
+}
+
+function renderSignUpFlow(content){
+  var ob=STATE.ob;
+
+  // Step 0: email + Google
   if(ob.step===0){
-    content.appendChild(el('p',{style:{fontSize:'14px',color:'var(--tx2)',lineHeight:'1.7',marginBottom:'1.5rem'}},'Built for shift workers - nurses, military, factory workers, firefighters. Input your rotation once.'));
+    if(ob.magicSent){
+      var ok=div({style:{textAlign:'center',padding:'1.5rem 0'}});
+      var iconWrap=div({style:{width:'56px',height:'56px',background:'rgba(45,184,122,0.15)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1rem',color:'var(--gr)'}});
+      iconWrap.appendChild(ic('mail',26));
+      ok.appendChild(iconWrap);
+      ok.appendChild(div({style:{fontSize:'17px',fontWeight:'600',color:'var(--tx)',marginBottom:'8px'}},'Check your email'));
+      ok.appendChild(div({style:{fontSize:'13px',color:'var(--tx2)',lineHeight:'1.6'}},'We sent a confirmation link to '+ob.email+'. Tap it to verify your email, then we\'ll finish setting up your account.'));
+      ok.appendChild(div({style:{height:'1.25rem'}}));
+      ok.appendChild(btn({class:'btn bg bsm',onclick:function(){STATE.ob.magicSent=false;render();}},'Use a different email'));
+      content.appendChild(ok);
+      return;
+    }
+
+    content.appendChild(el('p',{style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1rem',lineHeight:'1.6'}},'Create your account in seconds. No password to remember.'));
+
+    var gb=googleBtn(ob.authBusy);
+    gb.addEventListener('click',function(){doGoogleAuth();});
+    content.appendChild(gb);
+
+    var divider=div({style:{display:'flex',alignItems:'center',gap:'10px',margin:'1rem 0',color:'var(--tx3)',fontSize:'11px'}});
+    divider.appendChild(div({style:{flex:'1',height:'1px',background:'var(--bd)'}}));
+    divider.appendChild(txt('OR'));
+    divider.appendChild(div({style:{flex:'1',height:'1px',background:'var(--bd)'}}));
+    content.appendChild(divider);
+
+    content.appendChild(el('label',null,'Email address'));
+    var eInp=inp({type:'email',placeholder:'you@example.com',value:ob.email||''});
+    eInp.addEventListener('input',function(){STATE.ob.email=this.value;});
+    content.appendChild(eInp);
+
+    if(ob.authError){content.appendChild(div({style:{fontSize:'12px',color:'var(--rd)',marginTop:'8px'}},ob.authError));}
+
+    content.appendChild(div({style:{height:'10px'}}));
+    var sb=btn({class:'btn bp',style:{width:'100%'}});
+    sb.appendChild(ic('mail',15));sb.appendChild(txt(' '+(ob.authBusy?'Sending...':'Email me a sign-up link')));
+    sb.addEventListener('click',function(){doSendMagicLink('signup');});
+    if(ob.authBusy) sb.disabled=true;
+    content.appendChild(sb);
+    return;
+  }
+
+  // Steps 1-4 = profile setup (only reachable after auth)
+  var dots=div({style:{display:'flex',gap:'6px',marginBottom:'1.5rem'}});
+  [1,2,3,4].forEach(function(i){dots.appendChild(div({class:'sdot'+(i===ob.step?' on':i<ob.step?' dn':'')}));});
+  content.appendChild(dots);
+
+  if(ob.step===1){
+    content.appendChild(el('p',{style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1rem'}},'Welcome! Let\'s set up your profile.'));
     content.appendChild(el('label',null,'Your name'));
     var ni=inp({placeholder:'John Smith',value:ob.name||''});
     ni.addEventListener('input',function(){STATE.ob.name=this.value;});
     content.appendChild(ni);
     content.appendChild(div({style:{height:'1rem'}}));
-    content.appendChild(btn({class:'btn bp',style:{width:'100%'},onclick:function(){STATE.ob.step=1;render();}},['Get started']));
-    content.appendChild(div({style:{height:'0.75rem'}}));
-    content.appendChild(btn({class:'btn bg',style:{width:'100%'},onclick:function(){STATE.ob.step=-1;render();}},'Already have an account? Sign in'));
+    var cb=btn({class:'btn bp',style:{width:'100%'},onclick:function(){if((STATE.ob.name||'').trim()){STATE.ob.step=2;render();}}},'Continue');
+    content.appendChild(cb);
   }
-  else if(ob.step===1){
+  else if(ob.step===2){
     content.appendChild(el('p',{style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1rem'}},'Pick a unique handle - this becomes your shareable link.'));
     content.appendChild(el('label',null,'Your ShiftStack handle'));
     var hw=div({style:{position:'relative',marginBottom:'8px'}});
-    hw.appendChild(div({style:{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)',fontSize:'13px',color:'var(--tx3)'}},'shiftstack.app/'));
-    var hi=inp({placeholder:'tim_t',value:ob.handle||''});
-    hi.style.paddingLeft='115px';
+    hw.appendChild(div({style:{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)',fontSize:'13px',color:'var(--tx3)'}},'@'));
+    var hi=inp({placeholder:'your_handle',value:ob.handle||''});
+    hi.style.paddingLeft='28px';
     var availDiv=div({style:{fontSize:'12px',marginBottom:'1rem',minHeight:'18px',display:'block'},id:'handle-avail'});
     hi.addEventListener('input',function(){
       var v=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'');
       this.value=v; STATE.ob.handle=v; STATE.ob.handleOk=null;
       availDiv.textContent=''; availDiv.style.color='var(--tx3)';
-      var cb=document.getElementById('handle-continue');if(cb)cb.disabled=true;
+      var cbb=document.getElementById('handle-continue');if(cbb)cbb.disabled=true;
       if(!v||v.length<3){availDiv.textContent=v&&v.length?'Too short (3+ chars)':'';return;}
-      var reserved=['admin','api','app','demo','test','login'];
+      var reserved=['admin','api','app','demo','test','login','signin','signup','auth'];
       if(reserved.indexOf(v)!==-1){availDiv.textContent='Not available';availDiv.style.color='var(--rd)';return;}
       availDiv.textContent='Checking...';
       if(STATE._handleTimer) clearTimeout(STATE._handleTimer);
@@ -763,13 +915,13 @@ function renderOnboard(){
     content.appendChild(hw);
     content.appendChild(availDiv);
     var row=div({style:{display:'flex',gap:'8px',marginTop:'0.5rem'}});
-    row.appendChild(btn({class:'btn bg',onclick:function(){STATE.ob.step=0;render();}},'Back'));
-    var cb=btn({class:'btn bp',style:{flex:'1'},id:'handle-continue',onclick:function(){if(STATE.ob.handleOk===true){STATE.ob.step=2;render();}}},['Continue']);
+    row.appendChild(btn({class:'btn bg',onclick:function(){STATE.ob.step=1;render();}},'Back'));
+    var cb=btn({class:'btn bp',style:{flex:'1'},id:'handle-continue',onclick:function(){if(STATE.ob.handleOk===true){STATE.ob.step=3;render();}}},'Continue');
     cb.disabled=!(ob.handleOk===true);
     row.appendChild(cb);
     content.appendChild(row);
   }
-  else if(ob.step===2){
+  else if(ob.step===3){
     content.appendChild(el('p',{style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1rem'}},"Choose your rotation. We'll auto-fill your whole year."));
     content.appendChild(el('label',null,'Rotation type'));
     var rsel=sel({style:{marginBottom:'1rem'}},ROTATION_PRESETS.filter(function(p){return p.id!=='manual';}).map(function(p){return {value:p.id,label:p.label};}),ob.presetId||'10on4off');
@@ -787,11 +939,11 @@ function renderOnboard(){
     di.addEventListener('change',function(){STATE.ob.anchorDate=this.value;});
     content.appendChild(di);
     var row=div({style:{display:'flex',gap:'8px',marginTop:'0.5rem'}});
-    row.appendChild(btn({class:'btn bg',onclick:function(){STATE.ob.step=1;render();}},'Back'));
-    row.appendChild(btn({class:'btn bp',style:{flex:'1'},onclick:function(){STATE.ob.step=3;render();}},'Continue'));
+    row.appendChild(btn({class:'btn bg',onclick:function(){STATE.ob.step=2;render();}},'Back'));
+    row.appendChild(btn({class:'btn bp',style:{flex:'1'},onclick:function(){STATE.ob.step=4;render();}},'Continue'));
     content.appendChild(row);
   }
-  else if(ob.step===3){
+  else if(ob.step===4){
     content.appendChild(el('p',{style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1rem'}},'Add your work locations. Color-code each one.'));
     ob.locs.forEach(function(loc){
       var row=div({style:{display:'flex',alignItems:'center',gap:'10px',padding:'8px 0',borderBottom:'1px solid var(--bd)'}});
@@ -811,21 +963,21 @@ function renderOnboard(){
       li.addEventListener('keydown',function(e){if(e.key==='Enter'&&STATE.ob.newLoc.trim()){var id=STATE.ob.locs.length;STATE.ob.locs.push({id:id,name:STATE.ob.newLoc.trim(),color:LOC_COLORS[id%LOC_COLORS.length]});STATE.ob.newLoc='';render();}});
       li.addEventListener('input',function(){STATE.ob.newLoc=this.value;});
       addRow.appendChild(li);
-      var ab=btn({class:'btn bg bsm',onclick:function(){var nl=STATE.ob.newLoc.trim();if(nl){var id=STATE.ob.locs.length;STATE.ob.locs.push({id:id,name:nl,color:LOC_COLORS[id%LOC_COLORS.length]});STATE.ob.newLoc='';render();}}},['Add']);
+      var ab=btn({class:'btn bg bsm',onclick:function(){var nl=STATE.ob.newLoc.trim();if(nl){var id=STATE.ob.locs.length;STATE.ob.locs.push({id:id,name:nl,color:LOC_COLORS[id%LOC_COLORS.length]});STATE.ob.newLoc='';render();}}},'Add');
       addRow.appendChild(ab);content.appendChild(addRow);
     }
     var errDiv=div({style:{color:'var(--rd)',fontSize:'12px',marginTop:'8px',display:'none'}});
     content.appendChild(errDiv);
     var row=div({style:{display:'flex',gap:'8px',marginTop:'1rem'}});
-    row.appendChild(btn({class:'btn bg',onclick:function(){STATE.ob.step=2;render();}},'Back'));
-    var launchBtn=btn({class:'btn bp',style:{flex:'1'}},['Launch ShiftStack']);
+    row.appendChild(btn({class:'btn bg',onclick:function(){STATE.ob.step=3;render();}},'Back'));
+    var launchBtn=btn({class:'btn bp',style:{flex:'1'}},'Launch ShiftStack');
     launchBtn.addEventListener('click',function(){
       launchBtn.disabled=true;launchBtn.innerHTML='';launchBtn.appendChild(div({class:'spinner',style:{width:'18px',height:'18px'}}));
       var rot={presetId:ob.presetId,anchorDate:ob.anchorDate,locationId:0,customPattern:ob.customPat};
       var rots=ob.locs.map(function(loc){return loc.id===0?rot:{presetId:'manual',anchorDate:fmtDate(new Date()),locationId:loc.id,customPattern:''};});
       var userData={handle:ob.handle,name:ob.name,locations:ob.locs,rotations:rots};
+      if(STATE.authUser&&STATE.authUser.id) userData.auth_user_id=STATE.authUser.id;
       dbCreateUser(userData).then(function(created){
-        lcSet('ss_handle',created.handle);
         STATE.user=created;STATE.overrides={};STATE.pay=Object.assign({},DEFAULT_PAY);
         STATE.tab='calendar';render();
       }).catch(function(e){
@@ -835,7 +987,54 @@ function renderOnboard(){
     });
     row.appendChild(launchBtn);content.appendChild(row);
   }
-  return wrap;
+}
+
+// ─── Auth actions ─────────────────────────────────────────────────────────────
+function doSendMagicLink(mode){
+  var email=(mode==='signin'?STATE.signin.email:STATE.ob.email||'').trim();
+  if(!email||email.indexOf('@')===-1){
+    if(mode==='signin'){STATE.signin.error='Enter a valid email';}
+    else{STATE.ob.authError='Enter a valid email';}
+    render();return;
+  }
+  if(mode==='signin'){STATE.signin.busy=true;STATE.signin.error='';}
+  else{STATE.ob.authBusy=true;STATE.ob.authError='';}
+  render();
+  getSupaClient().then(function(client){
+    return client.auth.signInWithOtp({
+      email:email,
+      options:{
+        emailRedirectTo:APP_URL,
+        shouldCreateUser:true
+      }
+    });
+  }).then(function(res){
+    if(res.error) throw res.error;
+    if(mode==='signin'){STATE.signin.busy=false;STATE.signin.magicSent=true;}
+    else{STATE.ob.authBusy=false;STATE.ob.magicSent=true;}
+    render();
+  }).catch(function(e){
+    var msg=(e&&e.message)||'Could not send link';
+    if(mode==='signin'){STATE.signin.busy=false;STATE.signin.error=msg;}
+    else{STATE.ob.authBusy=false;STATE.ob.authError=msg;}
+    render();
+  });
+}
+
+function doGoogleAuth(){
+  STATE.ob.authBusy=true;STATE.signin.busy=true;STATE.ob.authError='';STATE.signin.error='';
+  render();
+  getSupaClient().then(function(client){
+    return client.auth.signInWithOAuth({
+      provider:'google',
+      options:{redirectTo:APP_URL}
+    });
+  }).catch(function(e){
+    STATE.ob.authBusy=false;STATE.signin.busy=false;
+    STATE.ob.authError=(e&&e.message)||'Could not start Google sign-in';
+    STATE.signin.error=STATE.ob.authError;
+    render();
+  });
 }
 
 function renderNav(){
@@ -1187,19 +1386,32 @@ function renderSettings(){
   pg.appendChild(themeCard);
 
   if(st==='share'){
-    var shareUrl=window.location.origin+window.location.pathname+'?view='+(u&&u.handle||'');
-    pg.appendChild(div({class:'slab'},'Your shareable link'));
+    var publicHandleUrl=APP_URL+'/?view='+(u&&u.handle||'');
+    var privateTokenUrl=u&&u.share_token?APP_URL+'/?s='+u.share_token:'';
+    pg.appendChild(div({class:'slab'},'Share by handle (public)'));
     var lCard=div({class:'card',style:{marginBottom:'1rem'}});
-    lCard.appendChild(div({class:'sbox',style:{marginBottom:'10px'}},shareUrl));
-    lCard.appendChild(div({style:{fontSize:'12px',color:'var(--tx3)',marginBottom:'6px'}},'Anyone with this link can view your schedule - read only, no account needed.'));
-    lCard.appendChild(div({style:{fontSize:'12px',color:'var(--gr)',marginBottom:'12px',display:'flex',alignItems:'center',gap:'5px'}},[svgIcon('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>',13),txt('Pay info is never visible from this link')]));
+    lCard.appendChild(div({class:'sbox',style:{marginBottom:'10px'}},publicHandleUrl));
+    lCard.appendChild(div({style:{fontSize:'12px',color:'var(--tx3)',marginBottom:'6px'}},'Anyone who knows your handle can view your schedule. Easy to share.'));
+    lCard.appendChild(div({style:{fontSize:'12px',color:'var(--gr)',marginBottom:'12px',display:'flex',alignItems:'center',gap:'5px'}},[svgIcon('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>',13),txt('Pay info is never visible from any share link')]));
     var copyB=btn({class:'btn bp',style:{width:'100%'}});
-    copyB.appendChild(ic('cpy',15));copyB.appendChild(txt(' Copy link'));
-    copyB.addEventListener('click',function(){navigator.clipboard.writeText(shareUrl).catch(function(){});copyB.textContent='Copied!';setTimeout(function(){copyB.textContent='';copyB.appendChild(ic('cpy',15));copyB.appendChild(txt(' Copy link'));},2000);});
+    copyB.appendChild(ic('cpy',15));copyB.appendChild(txt(' Copy public link'));
+    copyB.addEventListener('click',function(){navigator.clipboard.writeText(publicHandleUrl).catch(function(){});copyB.textContent='Copied!';setTimeout(function(){copyB.textContent='';copyB.appendChild(ic('cpy',15));copyB.appendChild(txt(' Copy public link'));},2000);});
     lCard.appendChild(copyB);pg.appendChild(lCard);
+
+    if(privateTokenUrl){
+      pg.appendChild(div({class:'slab'},'Share by private link (unguessable)'));
+      var pCard=div({class:'card',style:{marginBottom:'1rem'}});
+      pCard.appendChild(div({class:'sbox',style:{marginBottom:'10px'}},privateTokenUrl));
+      pCard.appendChild(div({style:{fontSize:'12px',color:'var(--tx3)',marginBottom:'12px'}},'Random unguessable link. Share only with people you trust. Doesn\'t reveal your handle.'));
+      var copyB2=btn({class:'btn bp',style:{width:'100%'}});
+      copyB2.appendChild(ic('cpy',15));copyB2.appendChild(txt(' Copy private link'));
+      copyB2.addEventListener('click',function(){navigator.clipboard.writeText(privateTokenUrl).catch(function(){});copyB2.textContent='Copied!';setTimeout(function(){copyB2.textContent='';copyB2.appendChild(ic('cpy',15));copyB2.appendChild(txt(' Copy private link'));},2000);});
+      pCard.appendChild(copyB2);pg.appendChild(pCard);
+    }
+
     pg.appendChild(div({class:'slab'},'Add to home screen'));
     var pwaCard=div({class:'card',style:{marginBottom:'1rem',padding:'1rem'}});
-    pwaCard.appendChild(div({style:{fontSize:'13px',color:'var(--tx2)',lineHeight:'1.7'}},'Send this link to your family. On iPhone: open in Safari, tap Share, then "Add to Home Screen". On Android: tap the menu, then "Add to Home Screen". It opens like an app and always shows your latest schedule.'));
+    pwaCard.appendChild(div({style:{fontSize:'13px',color:'var(--tx2)',lineHeight:'1.7'}},'Send a share link to your family. On iPhone: open in Safari, tap Share, then "Add to Home Screen". On Android: tap the menu, then "Add to Home Screen". It opens like an app and always shows your latest schedule.'));
     pg.appendChild(pwaCard);
     pg.appendChild(div({class:'slab'},'Locations'));
     pg.appendChild(div({style:{fontSize:'12px',color:'var(--tx3)',marginBottom:'0.75rem',lineHeight:'1.5'}},'Add jobs, hospitals, or sites. Tap color to cycle. Tap name to rename.'));
@@ -1218,11 +1430,18 @@ function renderSettings(){
     pg.appendChild(div({class:'slab'},'Account'));
     var ac=div({class:'card',style:{padding:'0.75rem 1rem',marginBottom:'1rem'}});
     function aRow(label,val){var r=div({style:{padding:'10px 0',borderBottom:'1px solid var(--bd)'}});r.appendChild(div({style:{fontSize:'14px',fontWeight:'500',color:'var(--tx)'}},label));r.appendChild(div({style:{fontSize:'12px',color:'var(--tx3)'}},String(val||'')));ac.appendChild(r);}
-    aRow('Handle','@'+(u&&u.handle||''));aRow('Name',u&&u.name||'');pg.appendChild(ac);
+    aRow('Handle','@'+(u&&u.handle||''));
+    aRow('Name',u&&u.name||'');
+    if(STATE.authUser&&STATE.authUser.email) aRow('Email',STATE.authUser.email);
+    pg.appendChild(ac);
     pg.appendChild(div({class:'slab'},'Danger zone'));
     var dz=div({class:'card',style:{padding:'1rem'}});
     dz.appendChild(div({style:{fontSize:'13px',color:'var(--tx2)',marginBottom:'1rem'}},'Sign out on this device. Your data stays in the cloud.'));
-    dz.appendChild(btn({class:'btn bd2c',style:{width:'100%'},onclick:function(){if(window.confirm('Sign out of ShiftStack?')){lcSet('ss_handle',null);localStorage.removeItem('ss_handle');STATE.user=null;STATE.overrides={};STATE.pay=Object.assign({},DEFAULT_PAY);STATE.loading=false;signOutSession().catch(function(){});render();}}},'Sign out'));
+    dz.appendChild(btn({class:'btn bd2c',style:{width:'100%'},onclick:function(){if(window.confirm('Sign out of ShiftStack?')){
+      lcSet('ss_handle',null);localStorage.removeItem('ss_handle');
+      STATE.user=null;STATE.authUser=null;STATE.overrides={};STATE.pay=Object.assign({},DEFAULT_PAY);STATE.loading=false;
+      signOutSession().then(function(){render();}).catch(function(){render();});
+    }}},'Sign out'));
     pg.appendChild(dz);
   }
   return pg;
@@ -1426,67 +1645,79 @@ function renderPaySettings(pg,locs,pay){
   pg.appendChild(buildJobSection(activeLoc.id,isFirst));pg.appendChild(saveBtn);
 }
 
-// ─── Supabase Auth ────────────────────────────────────────────────────────────
-var _supaClient=null;
-function getSupaClient(){
-  if(_supaClient) return Promise.resolve(_supaClient);
-  return new Promise(function(resolve,reject){
-    if(window.supabase){
-      _supaClient=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
-      resolve(_supaClient);return;
-    }
-    var s=document.createElement('script');
-    s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
-    s.onload=function(){
-      _supaClient=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
-      resolve(_supaClient);
-    };
-    s.onerror=function(){reject(new Error('Failed to load supabase-js'));};
-    document.head.appendChild(s);
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+function loadUserAndRender(userRow){
+  STATE.user=userRow;
+  return dbGetOverrides(userRow.id).then(function(overrides){
+    STATE.overrides=overrides||{};
+    STATE.pay=dbGetPay(userRow)||Object.assign({},DEFAULT_PAY);
+    STATE.loading=false;
+    STATE.tab='calendar';
+    render();
   });
-}
-function ensureAnonSession(){
-  return getSupaClient().then(function(client){
-    return client.auth.getSession().then(function(res){
-      if(res.data&&res.data.session) return res.data.session;
-      return client.auth.signInAnonymously().then(function(r){return r.data&&r.data.session;});
-    });
-  });
-}
-function signOutSession(){
-  return getSupaClient().then(function(client){return client.auth.signOut();});
 }
 
-// ─── Boot ─────────────────────────────────────────────────────────────────────
+function handleAuthedSession(session){
+  // Called when we have a real auth session (magic link or Google).
+  // 1. Try to find a users row already linked to this auth_user_id.
+  // 2. If found → load it and we're done.
+  // 3. If not found → check if there's an unlinked row matching the email's local-part (legacy migration), or push to onboarding.
+  STATE.authUser=session.user;
+  return dbGetUserByAuthId(session.user.id).then(function(linked){
+    if(linked) return loadUserAndRender(linked);
+    // No linked user. Send to onboarding starting at step 1 (skip email step).
+    STATE.user=null;
+    STATE.loading=false;
+    STATE.authView='signup';
+    STATE.ob=Object.assign({},STATE.ob,{step:1,email:session.user.email||'',magicSent:false,authBusy:false,authError:''});
+    render();
+  });
+}
+
 (function boot(){
   if(sessionStorage.getItem('fuse_shiftstack_launched')){
     STATE.splashDone=true;
   }
   setTheme(getTheme());
   var params=new URLSearchParams(window.location.search);
-  if(params.get('view')){STATE.loading=false;STATE.splashDone=true;render();return;}
-  ensureAnonSession().catch(function(e){console.warn('anon session failed, continuing without auth:',e);}).then(function(){
-    var savedHandle=lcGet('ss_handle',null);
-    if(savedHandle){
-      dbGetUser(savedHandle).then(function(u){
-        if(u){
-          STATE.user=u;
-          // ── pay comes directly from the user row, no extra fetch needed ──
-          return dbGetOverrides(u.id).then(function(overrides){
-            STATE.overrides=overrides||{};
-            STATE.pay=dbGetPay(u)||Object.assign({},DEFAULT_PAY);
-            STATE.loading=false;render();
-          });
-        } else {
-          localStorage.removeItem('ss_handle');
-          STATE.loading=false;render();
+  if(params.get('view')||params.get('s')){STATE.loading=false;STATE.splashDone=true;render();return;}
+
+  // Initial paint while we figure out auth state
+  render();
+
+  getSupaClient().then(function(client){
+    // Listen for auth state changes (magic link callback, Google return, sign out)
+    client.auth.onAuthStateChange(function(event,session){
+      if(event==='SIGNED_IN'&&session){
+        // Strip OAuth/magic link tokens from URL after callback
+        if(window.location.hash&&window.location.hash.indexOf('access_token')!==-1){
+          history.replaceState(null,'',window.location.pathname);
         }
-      }).catch(function(){STATE.loading=false;render();});
-    } else {
-      STATE.loading=false;render();
+        handleAuthedSession(session);
+      } else if(event==='SIGNED_OUT'){
+        STATE.authUser=null;
+        STATE.user=null;
+        STATE.loading=false;
+        render();
+      }
+    });
+    return client.auth.getSession();
+  }).then(function(res){
+    var session=res&&res.data&&res.data.session;
+    if(session){
+      handleAuthedSession(session);
+      return;
     }
+    // No auth session → show sign-in screen. The legacy handle-based
+    // auto-login has been removed as of Path 2 (security fix).
+    localStorage.removeItem('ss_handle');
+    STATE.loading=false;render();
+  }).catch(function(e){
+    console.error('boot failed:',e&&e.message||e);
+    STATE.loading=false;render();
   });
 })();
 </script>
+
 </body>
 </html>
